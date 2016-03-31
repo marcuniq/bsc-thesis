@@ -37,6 +37,7 @@ def train_mpcf(config, train, val, test):
         print "epoch {}".format(epoch)
 
         # shuffle train
+        train = train.reindex(np.random.permutation(train.index))
 
         errors = []
         total = len(train)
