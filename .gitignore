@@ -1,0 +1,7 @@
+*.iml
+
+## Directory-based project format:
+.idea
+
+data
+doc2vec-models
