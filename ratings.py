@@ -11,7 +11,7 @@ def get_ratings(ratings_path, movies_path, all_subs_path):
 
     ratings = pd.read_csv(ratings_path)
     movies = pd.read_csv(movies_path)
-    ratings_enhanced = ratings.merge(movies, on='movie_id', how='left')
+    ratings_enhanced = ratings.merge(movies, on='movie_id', how='inner')
     ratings_enhanced = ratings_enhanced[['user_id', 'movie_id', 'rating', 'timestamp', 'imdb_id']]
 
     result = ratings_enhanced[ratings_enhanced['imdb_id'].isin(subs['imdb_id'])]

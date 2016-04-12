@@ -158,11 +158,25 @@ def train_doc2vec(config, all_docs, train_docs=None, test_docs=None):
             model.alpha -= config['alpha_delta'] # decrease the learning rate
             model.min_alpha = model.alpha # fix the learning rate, no decay
 
+        # lr decay
+        if 'alpha_decay' in config:
+            model.alpha *= (1.0 - config['alpha_decay'])
+            model.min_alpha = model.alpha
+
+        # save
+        if 'save_on_epoch_end' in config and config['save_on_epoch_end']:
+            print "Saving model ..."
+            dt = datetime.datetime.now()
+            model.save('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}'.format(dt, config['experiment_name'], epoch))
+            with open('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}_config.json'
+                              .format(dt, config['experiment_name'], epoch), 'w') as f:
+                f.write(json.dumps(config))
+
+    if 'save_on_epoch_end' not in config or not config['save_on_epoch_end']:
         print "Saving model ..."
         dt = datetime.datetime.now()
-        model.save('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}'.format(dt, config['experiment_name'], epoch))
-        with open('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}_config.json'
-                          .format(dt, config['experiment_name'], epoch), 'w') as f:
+        model.save('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}'.format(dt, config['experiment_name']))
+        with open('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}_config.json'.format(dt, config['experiment_name']), 'w') as f:
             f.write(json.dumps(config))
 
 
@@ -176,10 +190,10 @@ if __name__ == "__main__":
         all_docs, train_docs, test_docs = get_docs(subs_path, stream=False)
         print 'Get documents took %.1f' % elapsed()
 
-    config = {'size': 100, 'window': 5, 'min_count': 2, 'alpha': 0.05, 'min_alpha': 0.05,
-              'dm': 0, 'negative': 2, 'hs': 0,
-              'nb_epochs':2, 'alpha_delta': 0.002,
-              'experiment_name': 'test', 'eval': True}
+    config = {'size': 100, 'window': 8, 'min_count': 2, 'alpha': 0.05, 'min_alpha': 0.05,
+              'dm': 0, 'negative': 4, 'hs': 0,
+              'nb_epochs': 200, 'alpha_decay': 5e-4, #'alpha_delta': 0.002,
+              'experiment_name': '200e_lr0.05_window8_neg4', 'eval': True, 'save_on_epoch_end': False}
     train_doc2vec(config, all_docs, train_docs, test_docs)
 
     print("END %s" % str(datetime.datetime.now()))
