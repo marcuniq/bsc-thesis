@@ -9,9 +9,9 @@ import re
 import unicodedata
 
 
-def get_subtitles(movies_path='data\\ml-1m\\processed\\movies-enhanced.csv',
-                  sub_raw_path='data\\subs\\raw',
-                  opensub_responses_path='data\\opensub_responses.csv',
+def get_subtitles(movies_path='data/ml-1m/processed/movies-enhanced.csv',
+                  sub_raw_path='data/subs/raw',
+                  opensub_responses_path='data/opensub_responses.csv',
                   search=True, download=True):
     movies = pd.read_csv(movies_path)
     opensub_responses = pd.DataFrame.from_csv(opensub_responses_path)
@@ -95,7 +95,7 @@ def get_subtitles(movies_path='data\\ml-1m\\processed\\movies-enhanced.csv',
         print 'number of subs with no srt format: ', nb_no_srt
 
 
-def parse_subtitles(subs_path='data\\subs\\', overwrite=True):
+def parse_subtitles(subs_path='data/subs/', overwrite=True):
     raw_path = os.path.join(subs_path, 'raw')
     processed_path = os.path.join(subs_path, 'processed')
 
@@ -182,8 +182,8 @@ def print_sub_rating(imdb_id, data):
     print imdb_id, sub_max_download_count['SubRating']
 
 
-def check_local_subs(sub_raw_path='data\\subs\\raw',
-                     opensub_responses_path='data\\opensub_responses.csv'):
+def check_local_subs(sub_raw_path='data/subs/raw',
+                     opensub_responses_path='data/opensub_responses.csv'):
 
     opensub_responses = pd.DataFrame.from_csv(opensub_responses_path)
     downloaded_subs = [os.path.join(sub_raw_path, x) for x in os.listdir(sub_raw_path)]

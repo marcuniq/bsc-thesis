@@ -53,7 +53,7 @@ def get_train_test_split(subs_path, test_size=0.2):
     else:
         from sklearn.cross_validation import train_test_split
 
-        all_paths = np.array(os.listdir(subs_path + 'processed\\')) # filename as label
+        all_paths = np.array(os.listdir(subs_path + 'processed/')) # filename as label
         train_paths, test_paths = train_test_split(all_paths, test_size=test_size, random_state=42)
 
         np.savetxt(subs_path + 'all.txt', all_paths, fmt='%s')
@@ -167,21 +167,21 @@ def train_doc2vec(config, all_docs, train_docs=None, test_docs=None):
         if 'save_on_epoch_end' in config and config['save_on_epoch_end']:
             print "Saving model ..."
             dt = datetime.datetime.now()
-            model.save('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}'.format(dt, config['experiment_name'], epoch))
-            with open('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}_config.json'
+            model.save('doc2vec-models/{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}'.format(dt, config['experiment_name'], epoch))
+            with open('doc2vec-models/{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}_config.json'
                               .format(dt, config['experiment_name'], epoch), 'w') as f:
                 f.write(json.dumps(config))
 
     if 'save_on_epoch_end' not in config or not config['save_on_epoch_end']:
         print "Saving model ..."
         dt = datetime.datetime.now()
-        model.save('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}'.format(dt, config['experiment_name']))
-        with open('doc2vec-models\\{:%Y-%m-%d_%H.%M.%S}_{}_config.json'.format(dt, config['experiment_name']), 'w') as f:
+        model.save('doc2vec-models/{:%Y-%m-%d_%H.%M.%S}_{}'.format(dt, config['experiment_name']))
+        with open('doc2vec-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'.format(dt, config['experiment_name']), 'w') as f:
             f.write(json.dumps(config))
 
 
 if __name__ == "__main__":
-    subs_path = 'data\\subs\\'
+    subs_path = 'data/subs/'
 
     print("START %s" % datetime.datetime.now())
 

@@ -258,7 +258,7 @@ class MPCFModel(object):
             if 'save_on_epoch_end' in config and config['save_on_epoch_end']:
                 print "Saving model ..."
                 dt = datetime.datetime.now()
-                self.save('mpcf-models\\{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}.h5'.format(dt, config['experiment_name'], epoch))
+                self.save('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}.h5'.format(dt, config['experiment_name'], epoch))
 
         # report error on test set
         test_rmse = []
@@ -275,11 +275,11 @@ class MPCFModel(object):
         # save model, config and history
         print "Saving model ..."
         dt = datetime.datetime.now()
-        self.save('mpcf-models\\{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
-        with open('mpcf-models\\{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
+        self.save('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
+        with open('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
                       .format(dt, config['experiment_name']), 'w') as f:
             f.write(json.dumps(config))
-        with open('mpcf-models\\{:%Y-%m-%d_%H.%M.%S}_{}_history.json'
+        with open('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_history.json'
                               .format(dt, config['experiment_name']), 'w') as f:
             f.write(json.dumps(history))
 
@@ -296,14 +296,14 @@ if __name__ == "__main__":
                   'nb_epochs': 100, 'val': True, 'test': True, 'experiment_name': 'si_e100',
                   'save_on_epoch_end': False, 'train_test_split': 0.75, 'train_val_split': 0.9,
                   'lr_si': 0.01, 'si_model': True}
-        ratings_path = 'data\\ml-1m\\processed\\ratings.csv'
-        movies_path = 'data\\ml-1m\\processed\\movies-enhanced.csv'
-        all_subs_path = 'data\\subs\\all.txt'
+        ratings_path = 'data/ml-1m/processed/ratings.csv'
+        movies_path = 'data/ml-1m/processed/movies-enhanced.csv'
+        all_subs_path = 'data/subs/all.txt'
         ratings = get_ratings(ratings_path, movies_path, all_subs_path)
         train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=True)
         train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=True)
 
-        d2v_model = Doc2Vec.load('doc2vec-models\\doc2vec-model_stopwords-removed')
+        d2v_model = Doc2Vec.load('doc2vec-models/doc2vec-model_stopwords-removed')
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
 
         model = MPCFModel(ratings, config)

@@ -74,15 +74,15 @@ if __name__ == '__main__':
     config = {'lr': 0.001, 'lr_decay': 5e-4, 'lambda_bi': 0.06, 'lambda_p': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
               'nb_epochs': 200, 'save_on_epoch_end': False, 'train_test_split': 0.8}
 
-    # ratings_path = 'data\\ml-1m\\processed\\ratings.csv'
-    # movies_path = 'data\\ml-1m\\processed\\movies-enhanced.csv'
-    # all_subs_path = 'data\\subs\\all.txt'
+    # ratings_path = 'data/ml-1m/processed/ratings.csv'
+    # movies_path = 'data/ml-1m/processed/movies-enhanced.csv'
+    # all_subs_path = 'data/subs/all.txt'
     # ratings = get_ratings(ratings_path, movies_path, all_subs_path)
     # train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
 
-    ratings = pd.read_csv('data\\splits\\ratings.csv')
-    train = pd.read_csv('data\\splits\\0.8-train.csv')
-    test = pd.read_csv('data\\splits\\0.8-test.csv')
+    ratings = pd.read_csv('data/splits/ratings.csv')
+    train = pd.read_csv('data/splits/0.8-train.csv')
+    test = pd.read_csv('data/splits/0.8-test.csv')
 
     config['experiment_name'] = 'si_kabbur-best_e200'
     side_info_model = True
@@ -90,7 +90,7 @@ if __name__ == '__main__':
     d2v_model = None
 
     if side_info_model:
-        config['d2v_model'] = 'doc2vec-models\\doc2vec-model_stopwords-removed'
+        config['d2v_model'] = 'doc2vec-models/doc2vec-model_stopwords-removed'
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         config['si_model'] = True
@@ -122,8 +122,8 @@ if __name__ == '__main__':
     dt = datetime.datetime.now()
     log, predictions = map(list, zip(*result))
     log = pd.DataFrame(log)
-    log.to_csv('data\\results\\{:%Y-%m-%d_%H.%M.%S}_{}_log.csv'.format(dt, config['experiment_name']), index=False)
+    log.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_log.csv'.format(dt, config['experiment_name']), index=False)
     predictions = reduce(lambda x,y: x.append(y), predictions)
-    predictions.to_csv('data\\results\\{:%Y-%m-%d_%H.%M.%S}_{}_predictions.csv'.format(dt, config['experiment_name']), index=False)
+    predictions.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_predictions.csv'.format(dt, config['experiment_name']), index=False)
 
 
