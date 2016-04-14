@@ -305,7 +305,7 @@ if __name__ == "__main__":
     d2v_model = None
 
     if side_info_model:
-        config['d2v_model'] = 'doc2vec-models/2016-04-11_17.48.40_100e_lr0.01_window8_neg4'
+        config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
         #config['d2v_model'] = 'doc2vec-models/doc2vec-model_stopwords-removed'
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])

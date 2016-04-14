@@ -11,7 +11,7 @@ import numpy as np
 import statsmodels.api as sm
 from random import sample
 from collections import namedtuple
-
+import progressbar
 from utils import elapsed_timer
 
 
@@ -89,18 +89,16 @@ def get_docs(subs_path, tokenizer=None, stream=False):
     def create_doc_array(): # in RAM
         docs = []
         total = len(all_paths)
-        point = total / 100
-        increment = total / 20
+        bar = progressbar.ProgressBar(max_value=total)
+        bar.start()
 
         for i, doc_fname in enumerate(all_paths): # filename as label
-            if(i % (5 * point) == 0):
-                sys.stdout.write("\r[" + "=" * (i / increment) +  " " * ((total - i)/ increment) + "]" + str(i / point) + "%")
-                sys.stdout.flush()
+            bar.update(i)
             with open(os.path.join(subs_path, 'processed', doc_fname)) as d:
                 words = tokenizer(d.read())
                 split = 'test' if doc_fname in test_paths else 'train'
                 docs.append(MovieDocument(words,[doc_fname], split))
-        print ""
+        bar.finish()
         return docs
 
     if stream:
@@ -116,7 +114,7 @@ def get_docs(subs_path, tokenizer=None, stream=False):
 
 
 def train_doc2vec(config, all_docs, train_docs=None, test_docs=None):
-    if 'cores' in config.keys():
+    if 'cores' in config:
         cores = config['cores']
     else:
         cores = multiprocessing.cpu_count()
@@ -124,9 +122,10 @@ def train_doc2vec(config, all_docs, train_docs=None, test_docs=None):
     # create model
     model = Doc2Vec(size=config['size'], window=config['window'], min_count=config['min_count'],
                     workers=cores, alpha=config['alpha'], min_alpha=config['min_alpha'], dm=config['dm'],
+                    dm_mean=config['dm_mean'], dm_concat=config['dm_concat'],
                     negative=config['negative'], hs=config['hs']) # use fixed learning rate
 
-    if 'train_words' in config.keys() and config['train_words']:
+    if 'train_words' in config and config['train_words']:
         model.train_words = True
     else:
         model.train_words = False
@@ -137,16 +136,16 @@ def train_doc2vec(config, all_docs, train_docs=None, test_docs=None):
         print 'Building vocabulary took %.1f' % elapsed()
 
     print "Start training ..."
+    bar = progressbar.ProgressBar(max_value=config['nb_epochs'])
+    bar.start()
     for epoch in range(config['nb_epochs']):
-        print "epoch {}".format(epoch)
+        bar.update(epoch)
 
         # train
-        with elapsed_timer() as elapsed:
-            model.train(all_docs)
-            duration = '%.1f' % elapsed()
+        model.train(all_docs)
 
         # evaluate
-        if 'eval' in config.keys() and config['eval'] and train_docs and test_docs:
+        if 'eval' in config and config['eval'] and train_docs is not None and test_docs is not None:
             eval_duration = ''
             with elapsed_timer() as eval_elapsed:
                 #err, err_count, test_count, predictor = error_rate_for_model(model, train_docs, test_docs)
@@ -154,7 +153,7 @@ def train_doc2vec(config, all_docs, train_docs=None, test_docs=None):
 
             #print("%f : epoch: %i duration: %ss eval duration: %ss" % (err, epoch, duration, eval_duration))
 
-        if 'alpha_delta' in config.keys():
+        if 'alpha_delta' in config:
             model.alpha -= config['alpha_delta'] # decrease the learning rate
             model.min_alpha = model.alpha # fix the learning rate, no decay
 
@@ -172,6 +171,7 @@ def train_doc2vec(config, all_docs, train_docs=None, test_docs=None):
                               .format(dt, config['experiment_name'], epoch), 'w') as f:
                 f.write(json.dumps(config))
 
+    bar.finish()
     if 'save_on_epoch_end' not in config or not config['save_on_epoch_end']:
         print "Saving model ..."
         dt = datetime.datetime.now()
@@ -186,14 +186,12 @@ if __name__ == "__main__":
     print("START %s" % datetime.datetime.now())
 
     print "Get documents..."
-    with elapsed_timer() as elapsed:
-        all_docs, train_docs, test_docs = get_docs(subs_path, stream=False)
-        print 'Get documents took %.1f' % elapsed()
+    all_docs, train_docs, test_docs = get_docs(subs_path, stream=False)
 
-    config = {'size': 100, 'window': 8, 'min_count': 2, 'alpha': 0.05, 'min_alpha': 0.05,
-              'dm': 0, 'negative': 4, 'hs': 0,
-              'nb_epochs': 200, 'alpha_decay': 5e-4, #'alpha_delta': 0.002,
-              'experiment_name': '200e_lr0.05_window8_neg4', 'eval': True, 'save_on_epoch_end': False}
+    config = {'size': 50, 'window': 8, 'min_count': 2, 'alpha': 0.025, 'min_alpha': 0.025,
+              'dm': 0, 'negative': 5, 'dm_mean': 0, 'dm_concat': 0, 'hs': 0,
+              'nb_epochs': 20, 'alpha_decay': 5e-4, #'alpha_delta': 0.002,
+              'experiment_name': '20e_pv-dbow_size50_lr0.025_window8_neg5', 'eval': True, 'save_on_epoch_end': False}
     train_doc2vec(config, all_docs, train_docs, test_docs)
 
     print("END %s" % str(datetime.datetime.now()))
