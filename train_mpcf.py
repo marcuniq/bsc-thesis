@@ -149,6 +149,7 @@ class MPCFModel(object):
 
         config = self.config
         lr = config['lr']
+        lr_si = config['lr_si'] if 'lr_si' in config else None
         lambda_bi = config['lambda_bi']
         lambda_p = config['lambda_p']
 
@@ -214,7 +215,6 @@ class MPCFModel(object):
                     feature_losses.append(feature_loss)
 
                     # update parameters
-                    lr_si = config['lr_si']
                     self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - lambda_p * Q_i + deltaQ_i)
                     self.X = self.X + lr_si * (deltaX - lambda_p * self.X)
                 else:
@@ -231,6 +231,9 @@ class MPCFModel(object):
             # lr decay
             if 'lr_decay' in config:
                 lr *= (1.0 - config['lr_decay'])
+
+            if 'lr_si_decay' in config:
+                lr_si *= (1.0 - config['lr_si_decay'])
 
             # report error
             current_rmse = np.sqrt(np.mean(np.square(rating_errors)))
@@ -284,7 +287,7 @@ class MPCFModel(object):
 
 
 if __name__ == "__main__":
-    config = {'lr': 0.001, 'lr_decay': 2e-2, 'lambda_bi': 0.06, 'lambda_p': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
+    config = {'lr': 0.001, 'lr_decay': 5e-4, 'lambda_bi': 0.06, 'lambda_p': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
               'nb_epochs': 50, 'val': True, 'test': True,
               'save_on_epoch_end': False, 'train_test_split': 0.8, 'train_val_split': 0.9}
 
@@ -310,7 +313,8 @@ if __name__ == "__main__":
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         config['si_model'] = True
-        config['lr_si'] = 0.05
+        config['lr_si'] = 0.005
+        config['lr_si_decay'] = 2e-2
 
     model = MPCFModel(ratings, config)
     model.fit(train, val=val, test=test, d2v_model=d2v_model)
