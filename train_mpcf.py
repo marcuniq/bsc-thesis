@@ -5,6 +5,7 @@ import datetime
 import json
 from gensim.models.doc2vec import Doc2Vec
 import progressbar
+import deepdish as dd
 
 from ratings import get_ratings, get_train_test_split
 
@@ -76,11 +77,9 @@ class MPCFModel(object):
         """
         Save parameters; code from Keras
         """
-        import deepdish as dd
         import os.path
         # if file exists and should not be overwritten
         if not overwrite and os.path.isfile(filepath):
-            import sys
             get_input = input
             if sys.version_info[:2] <= (2, 7):
                 get_input = raw_input
@@ -96,8 +95,6 @@ class MPCFModel(object):
         dd.io.save(filepath, to_save)
 
     def load(self, filepath):
-        import deepdish as dd
-
         loaded = dd.io.load(filepath)
         self.config = loaded['config']
         self.set_params(loaded['params'])
@@ -287,37 +284,34 @@ class MPCFModel(object):
 
 
 if __name__ == "__main__":
-    train = False
-    predict = True
+    config = {'lr': 0.001, 'lr_decay': 2e-2, 'lambda_bi': 0.06, 'lambda_p': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
+              'nb_epochs': 50, 'val': True, 'test': True,
+              'save_on_epoch_end': False, 'train_test_split': 0.8, 'train_val_split': 0.9}
 
-    if train:
+    # ratings_path = 'data/ml-1m/processed/ratings.csv'
+    # movies_path = 'data/ml-1m/processed/movies-enhanced.csv'
+    # all_subs_path = 'data/subs/all.txt'
+    # ratings = get_ratings(ratings_path, movies_path, all_subs_path)
+    # train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
 
-        config = {'lr': 0.001, 'lr_decay': 5e-4, 'lambda_bi': 0.06, 'lambda_p': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
-                  'nb_epochs': 100, 'val': True, 'test': True, 'experiment_name': 'si_e100',
-                  'save_on_epoch_end': False, 'train_test_split': 0.75, 'train_val_split': 0.9,
-                  'lr_si': 0.01, 'si_model': True}
-        ratings_path = 'data/ml-1m/processed/ratings.csv'
-        movies_path = 'data/ml-1m/processed/movies-enhanced.csv'
-        all_subs_path = 'data/subs/all.txt'
-        ratings = get_ratings(ratings_path, movies_path, all_subs_path)
-        train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=True)
-        train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=True)
+    ratings = pd.read_csv('data/splits/ratings.csv')
+    train = pd.read_csv('data/splits/0.8-train.csv')
+    train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
+    test = pd.read_csv('data/splits/0.8-test.csv')
 
-        d2v_model = Doc2Vec.load('doc2vec-models/doc2vec-model_stopwords-removed')
+    config['experiment_name'] = 'si_kabbur-best_e50'
+    side_info_model = True
+
+    d2v_model = None
+
+    if side_info_model:
+        config['d2v_model'] = 'doc2vec-models/2016-04-11_17.48.40_100e_lr0.01_window8_neg4'
+        #config['d2v_model'] = 'doc2vec-models/doc2vec-model_stopwords-removed'
+        d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
+        config['si_model'] = True
+        config['lr_si'] = 0.05
 
-        model = MPCFModel(ratings, config)
-        hist = model.fit(train, val, test, d2v_model)
-
-        print hist
-
-    if predict:
-        model = MPCFModel()
-        model.load('mpcf-models/2016-04-01_18.45.28_kabbur_best_e200.h5')
-
-        predictions = model.predict_for_user(1)
-
-        predictions.to_csv('predictions_for_1.csv')
-
-        print predictions
+    model = MPCFModel(ratings, config)
+    model.fit(train, val=val, test=test, d2v_model=d2v_model)
 
