@@ -4,6 +4,7 @@ import sys
 import datetime
 import json
 from gensim.models.doc2vec import Doc2Vec
+import progressbar
 
 from ratings import get_ratings, get_train_test_split
 
@@ -172,8 +173,8 @@ class MPCFModel(object):
 
             if verbose > 0:
                 total = len(train)
-                point = total / 100
-                increment = total / 20
+                bar = progressbar.ProgressBar(max_value=total)
+                bar.start()
                 progress = 0
 
             # train / update model
@@ -224,14 +225,12 @@ class MPCFModel(object):
 
                 # update progess bar
                 if verbose > 0:
-                    if(progress % (5 * point) == 0):
-                        sys.stdout.write("\r[" + "=" * (progress / increment) +  " " * ((total - progress)/ increment) + "]"
-                                         + str(progress / point) + "%")
-                        sys.stdout.flush()
+                    progress += 1
+                    bar.update(progress)
 
-                    progress = progress + 1
+            if bar:
+                bar.finish()
 
-            print ""
             # lr decay
             if 'lr_decay' in config:
                 lr *= (1.0 - config['lr_decay'])
