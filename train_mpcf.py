@@ -8,7 +8,7 @@ import progressbar
 import deepdish as dd
 
 from ratings import get_ratings, get_train_test_split
-
+from build_si_model import build_si_model
 
 class MPCFModel(object):
 
@@ -145,13 +145,13 @@ class MPCFModel(object):
             result = result.append(pd.DataFrame({'movie_id': movie_id, 'r_predict': r_predict}))
         return result.sort_values('r_predict', ascending=False).reset_index(drop=True)
 
-    def fit(self, train, val=None, test=None, d2v_model=None, verbose=1):
+    def fit(self, train, val=None, test=None, d2v_model=None, si_model=None, verbose=1):
 
         config = self.config
         lr = config['lr']
         lr_si = config['lr_si'] if 'lr_si' in config else None
-        lambda_bi = config['lambda_bi']
-        lambda_p = config['lambda_p']
+        lr_delta_qi = config['lr_delta_qi'] if 'lr_delta_qi' in config else None
+        reg_lambda = config['reg_lambda']
 
         self.avg_train_rating = train['rating'].mean()
 
@@ -198,27 +198,28 @@ class MPCFModel(object):
                 rating_errors.append(rating_error)
 
                 # update parameters
-                self.b_i[i] = b_i + lr * (rating_error - lambda_bi * b_i)
-                self.B_u[u,local_pref] = B_ut + lr * (rating_error - lambda_p * B_ut)
-                self.P[u,:] = P_u + lr * (rating_error * Q_i - lambda_p * P_u)
-                self.W[u,local_pref,:] = W_ut + lr * (rating_error * Q_i - lambda_p * W_ut)
+                self.b_i[i] = b_i + lr * (rating_error - reg_lambda * b_i)
+                self.B_u[u,local_pref] = B_ut + lr * (rating_error - reg_lambda * B_ut)
+                self.P[u,:] = P_u + lr * (rating_error * Q_i - reg_lambda * P_u)
+                self.W[u,local_pref,:] = W_ut + lr * (rating_error * Q_i - reg_lambda * W_ut)
 
                 # side information model - predict feature vector, calculate feature vector error
-                if d2v_model is not None and 'si_model' in config and config['si_model']:
-                    feature_predict = np.dot(self.X, np.hstack([1, Q_i]).T) # vector
-
+                if d2v_model is not None and si_model is not None and 'si_model' in config and config['si_model']:
                     feature = d2v_model.docvecs['{}.txt'.format(imdb_id)]
-                    feature_error = feature - feature_predict
-                    deltaX = np.dot(feature_error.reshape((-1,1)), np.hstack([1, Q_i]).reshape((1, -1)))
-                    deltaQ_i = np.dot(self.X[:,1:].T, feature_error) # without bias
-                    feature_loss = np.sum(np.square(feature_error))
+
+                    calc_loss, get_qi_grad, gradient_step = si_model
+
+                    feature_loss = calc_loss(Q_i, feature)
                     feature_losses.append(feature_loss)
 
+                    delta_qi = get_qi_grad(Q_i, feature)
+
                     # update parameters
-                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - lambda_p * Q_i + deltaQ_i)
-                    self.X = self.X + lr_si * (deltaX - lambda_p * self.X)
+                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) + lr_delta_qi * delta_qi
+                    gradient_step(Q_i, feature, lr_si)
+
                 else:
-                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - lambda_p * Q_i)
+                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i)
 
                 # update progess bar
                 if verbose > 0:
@@ -234,6 +235,9 @@ class MPCFModel(object):
 
             if 'lr_si_decay' in config:
                 lr_si *= (1.0 - config['lr_si_decay'])
+
+            if 'lr_delta_qi_decay' in config:
+                lr_delta_qi *= (1.0 - config['lr_delta_qi_decay'])
 
             # report error
             current_rmse = np.sqrt(np.mean(np.square(rating_errors)))
@@ -287,8 +291,8 @@ class MPCFModel(object):
 
 
 if __name__ == "__main__":
-    config = {'lr': 0.001, 'lr_decay': 5e-4, 'lambda_bi': 0.06, 'lambda_p': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
-              'nb_epochs': 50, 'val': True, 'test': True,
+    config = {'lr': 0.001, 'lr_decay': 5e-4, 'reg_lambda': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
+              'nb_epochs': 20, 'val': True, 'test': True,
               'save_on_epoch_end': False, 'train_test_split': 0.8, 'train_val_split': 0.9}
 
     # ratings_path = 'data/ml-1m/processed/ratings.csv'
@@ -302,10 +306,11 @@ if __name__ == "__main__":
     train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
     test = pd.read_csv('data/splits/0.8-test.csv')
 
-    config['experiment_name'] = 'si_kabbur-best_e50'
+    config['experiment_name'] = 'si_e20_lr-delta-qi-test'
     side_info_model = True
 
     d2v_model = None
+    si_model = None
 
     if side_info_model:
         config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
@@ -314,8 +319,12 @@ if __name__ == "__main__":
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         config['si_model'] = True
         config['lr_si'] = 0.005
-        config['lr_si_decay'] = 2e-2
+        #config['lr_si_decay'] = 2e-2
+        config['lr_delta_qi'] = 0.000001
+        #config['lr_delta_qi_decay'] = 5e-4
+
+        si_model = build_si_model(config['nb_latent_f'], config['nb_d2v_features'], len(train), config['reg_lambda'])
 
     model = MPCFModel(ratings, config)
-    model.fit(train, val=val, test=test, d2v_model=d2v_model)
+    model.fit(train, val=val, test=test, d2v_model=d2v_model, si_model=si_model)
 
