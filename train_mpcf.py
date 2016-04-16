@@ -161,7 +161,7 @@ class MPCFModel(object):
 
         print "Start training ..."
         for epoch in range(config['nb_epochs']):
-            print "epoch {}, lr {}".format(epoch, lr)
+            print "epoch {}, lr {}, lr_si {}, lr_delta_qi {}".format(epoch, lr, lr_si, lr_delta_qi)
 
             # shuffle train
             train = train.reindex(np.random.permutation(train.index))
@@ -292,7 +292,7 @@ class MPCFModel(object):
 
 if __name__ == "__main__":
     config = {'lr': 0.001, 'lr_decay': 5e-4, 'reg_lambda': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
-              'nb_epochs': 20, 'val': True, 'test': True,
+              'nb_epochs': 50, 'val': True, 'test': True,
               'save_on_epoch_end': False, 'train_test_split': 0.8, 'train_val_split': 0.9}
 
     # ratings_path = 'data/ml-1m/processed/ratings.csv'
@@ -306,7 +306,7 @@ if __name__ == "__main__":
     train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
     test = pd.read_csv('data/splits/0.8-test.csv')
 
-    config['experiment_name'] = 'si_e20_lr-delta-qi-test'
+    config['experiment_name'] = 'si_e50_lrsi-0.03_lrdqi_1e-4_minus'
     side_info_model = True
 
     d2v_model = None
@@ -318,12 +318,15 @@ if __name__ == "__main__":
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         config['si_model'] = True
-        config['lr_si'] = 0.005
-        #config['lr_si_decay'] = 2e-2
-        config['lr_delta_qi'] = 0.000001
-        #config['lr_delta_qi_decay'] = 5e-4
+        config['lr_si'] = 0.03
+        config['lr_si_decay'] = 2e-2
+        config['lr_delta_qi'] = 0.0001
+        config['lr_delta_qi_decay'] = 5e-4
 
         si_model = build_si_model(config['nb_latent_f'], config['nb_d2v_features'], len(train), config['reg_lambda'])
+
+    print "experiment: ", config['experiment_name']
+    print config
 
     model = MPCFModel(ratings, config)
     model.fit(train, val=val, test=test, d2v_model=d2v_model, si_model=si_model)
