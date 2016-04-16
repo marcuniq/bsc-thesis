@@ -215,7 +215,7 @@ class MPCFModel(object):
                     delta_qi = get_qi_grad(Q_i, feature)
 
                     # update parameters
-                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) + lr_delta_qi * delta_qi
+                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) - lr_delta_qi * delta_qi
                     gradient_step(Q_i, feature, lr_si)
 
                 else:
@@ -274,7 +274,7 @@ class MPCFModel(object):
             print "Test RMSE:", test_rmse
 
         # history
-        history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'featur_rmse': feature_rmse, 'test_rmse': test_rmse}
+        history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'feature_rmse': feature_rmse, 'test_rmse': test_rmse}
 
         # save model, config and history
         print "Saving model ..."
@@ -292,7 +292,7 @@ class MPCFModel(object):
 
 if __name__ == "__main__":
     config = {'lr': 0.001, 'lr_decay': 5e-4, 'reg_lambda': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
-              'nb_epochs': 20, 'val': True, 'test': True,
+              'nb_epochs': 50, 'val': True, 'test': True,
               'save_on_epoch_end': False, 'train_test_split': 0.8, 'train_val_split': 0.9}
 
     # ratings_path = 'data/ml-1m/processed/ratings.csv'
@@ -306,7 +306,7 @@ if __name__ == "__main__":
     train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
     test = pd.read_csv('data/splits/0.8-test.csv')
 
-    config['experiment_name'] = 'si_e20_lr-delta-qi-test'
+    config['experiment_name'] = 'si_e50_lrsi-0.005_lrdqi_5e-5_minus'
     side_info_model = True
 
     d2v_model = None
@@ -319,9 +319,9 @@ if __name__ == "__main__":
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         config['si_model'] = True
         config['lr_si'] = 0.005
-        #config['lr_si_decay'] = 2e-2
-        config['lr_delta_qi'] = 0.000001
-        #config['lr_delta_qi_decay'] = 5e-4
+        config['lr_si_decay'] = 5e-4
+        config['lr_delta_qi'] = 0.00005
+        config['lr_delta_qi_decay'] = 5e-4
 
         si_model = build_si_model(config['nb_latent_f'], config['nb_d2v_features'], len(train), config['reg_lambda'])
 
