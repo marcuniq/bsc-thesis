@@ -8,6 +8,7 @@ from gensim.models.doc2vec import Doc2Vec
 
 from ratings import get_ratings, get_train_test_split
 from train_mpcf import MPCFModel
+from build_si_model import build_si_model
 
 
 def calc_auc(args):
@@ -88,16 +89,22 @@ if __name__ == '__main__':
     side_info_model = True
 
     d2v_model = None
+    si_model = None
 
     if side_info_model:
-        config['d2v_model'] = 'doc2vec-models/doc2vec-model_stopwords-removed'
+        config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         config['si_model'] = True
-        config['lr_si'] = 0.01
+        config['lr_si'] = 0.001
+        config['lr_si_decay'] = 2e-2
+        config['lr_delta_qi'] = 0.00001
+        config['lr_delta_qi_decay'] = 5e-4
+
+        si_model = build_si_model(config['nb_latent_f'], config['nb_d2v_features'], len(train), config['reg_lambda'])
 
     model = MPCFModel(ratings, config)
-    model.fit(train, d2v_model=d2v_model)
+    model.fit(train, test=test, d2v_model=d2v_model, si_model=si_model)
 
     #model = MPCFModel()
     #model.load('mpcf-models/2016-04-01_18.45.28_kabbur_best_e200.h5')

@@ -215,7 +215,7 @@ class MPCFModel(object):
                     delta_qi = get_qi_grad(Q_i, feature)
 
                     # update parameters
-                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) + lr_delta_qi * delta_qi
+                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) - lr_delta_qi * delta_qi
                     gradient_step(Q_i, feature, lr_si)
 
                 else:
@@ -274,7 +274,7 @@ class MPCFModel(object):
             print "Test RMSE:", test_rmse
 
         # history
-        history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'featur_rmse': feature_rmse, 'test_rmse': test_rmse}
+        history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'feature_rmse': feature_rmse, 'test_rmse': test_rmse}
 
         # save model, config and history
         print "Saving model ..."
@@ -306,7 +306,7 @@ if __name__ == "__main__":
     train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
     test = pd.read_csv('data/splits/0.8-test.csv')
 
-    config['experiment_name'] = 'si_e50_lrsi-0.03_lrdqi_1e-4_minus'
+    config['experiment_name'] = 'si_e20_lr-delta-qi-test'
     side_info_model = True
 
     d2v_model = None
