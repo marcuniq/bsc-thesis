@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
         return results.get()
 
-    config = {'lr': 0.001, 'lr_decay': 5e-4, 'lambda_bi': 0.06, 'lambda_p': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
+    config = {'lr': 0.001, 'lr_decay': 5e-4, 'reg_lambda': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
               'nb_epochs': 200, 'save_on_epoch_end': False, 'train_test_split': 0.2}
 
     # ratings_path = 'data/ml-1m/processed/ratings.csv'
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     train = pd.read_csv('data/splits/0.2-train.csv')
     test = pd.read_csv('data/splits/0.2-test.csv')
 
-    config['experiment_name'] = 'no-si_e200_tt-0.2_no-val'
+    config['experiment_name'] = 'test'
     side_info_model = False
 
     d2v_model = None
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     #model.fit(train, test=test, d2v_model=d2v_model, si_model=si_model)
 
     model = MPCFModel()
-    model.load('mpcf-models/2016-04-18_11.15.30_no-si_e200_tt-0.2_no-val.h5')
+    model.load('mpcf-models/2016-04-18_16.32.34_no-si_e20_tt-0.2_zero-samp-3.h5')
 
     # calc AUC #
     print "Calculate AUC..."

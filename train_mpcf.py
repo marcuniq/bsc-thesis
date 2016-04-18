@@ -141,7 +141,7 @@ class MPCFModel(object):
 
     def predict_for_user(self, user_id, movie_ids=None):
         u = self.users[user_id]
-        result = pd.DataFrame()
+        result = []
 
         if movie_ids is not None:
             it = movie_ids
@@ -152,8 +152,8 @@ class MPCFModel(object):
             i = self.movies[movie_id]
             local_pref, local_pref_score = self._get_local_pref(u, i)
             r_predict = self.avg_train_rating + self.b_i[i] + np.dot(self.P[u,:], self.Q[i,:].T) + local_pref_score
-            result = result.append(pd.DataFrame({'movie_id': movie_id, 'r_predict': r_predict}))
-        return result.sort_values('r_predict', ascending=False).reset_index(drop=True)
+            result.append({'movie_id': movie_id, 'r_predict': r_predict})
+        return pd.DataFrame(result).sort_values('r_predict', ascending=False).reset_index(drop=True)
 
     def _get_all_non_rated(self):
         if self.non_rated is None:
@@ -358,17 +358,17 @@ if __name__ == "__main__":
     #train = pd.read_csv('data/splits/0.8-train.csv')
     #val = pd.read_csv('data/splits/0.8-0.9-val.csv')
     #test = pd.read_csv('data/splits/0.8-test.csv')
-    #train = pd.read_csv('data/splits/0.2-train.csv')
-    #val = None
-    train = pd.read_csv('data/splits/0.2-0.9-train.csv')
-    val = pd.read_csv('data/splits/0.2-0.9-val.csv')
+    train = pd.read_csv('data/splits/0.2-train.csv')
+    val = None
+    #train = pd.read_csv('data/splits/0.2-0.9-train.csv')
+    #val = pd.read_csv('data/splits/0.2-0.9-val.csv')
     test = pd.read_csv('data/splits/0.2-test.csv')
     #train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
     #train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
 
     config['nb_zero_samples'] = len(train) * 3
 
-    config['experiment_name'] = 'no-si_e20_tt-0.2_zero-samp-3'
+    config['experiment_name'] = 'no-si_e20_tt-0.2_zero-samp-3_no-val'
     side_info_model = False
 
     d2v_model = None
