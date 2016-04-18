@@ -6,6 +6,8 @@ import json
 from gensim.models.doc2vec import Doc2Vec
 import progressbar
 import deepdish as dd
+import random
+import itertools
 
 from ratings import get_ratings, get_train_test_split
 from build_si_model import build_si_model
@@ -13,10 +15,13 @@ from build_si_model import build_si_model
 class MPCFModel(object):
 
     def __init__(self, ratings=None, config=None):
+        self.ratings = ratings
+        self.non_rated = None
         self.config = config
 
         self.users = None
         self.movies = None
+        self.movie_to_imdb = None
 
         self.P = None
         self.Q = None
@@ -45,6 +50,11 @@ class MPCFModel(object):
         movies_unique = ratings['movie_id'].unique()
         nb_movies = len(movies_unique)
         self.movies = dict(zip(movies_unique, range(nb_movies))) # lookup table for user_id to zero indexed number
+
+        self.movie_to_imdb = {}
+        for row in ratings.itertuples():
+            movie_id, imdb_id = row[2], row[5]
+            self.movie_to_imdb[movie_id] = imdb_id
 
     def _init_params(self, nb_users, nb_movies, nb_latent_f, nb_user_pref, nb_d2v_features=None, scale=0.001):
         P = np.random.uniform(low=-scale, high=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
@@ -145,6 +155,42 @@ class MPCFModel(object):
             result = result.append(pd.DataFrame({'movie_id': movie_id, 'r_predict': r_predict}))
         return result.sort_values('r_predict', ascending=False).reset_index(drop=True)
 
+    def _get_all_non_rated(self):
+        if self.non_rated is None:
+            movie_ids = self.movies.keys()
+            user_ids = self.users.keys()
+            possible_combinations = np.fromiter(itertools.product(user_ids, movie_ids), dtype=[('u', np.int), ('m', np.int)])
+            rated = np.zeros((len(self.ratings),), dtype=[('u', np.int), ('m', np.int)])
+            for i, row in enumerate(self.ratings.itertuples()):
+                user_id, movie_id = row[1], row[2]
+                rated[i] = (user_id, movie_id)
+
+            self.non_rated = np.setdiff1d(possible_combinations, rated, assume_unique=True)
+
+        return self.non_rated
+
+    def _sample_zeros(self, nb_samples, verbose=1):
+        non_rated = self._get_all_non_rated()
+        samples = random.sample(non_rated, nb_samples)
+
+        if verbose > 1:
+            progress = 0
+            bar = progressbar.ProgressBar(max_value=nb_samples)
+            bar.start()
+
+        result = []
+        for i, (user_id, movie_id) in enumerate(samples):
+            imdb_id = self.movie_to_imdb[movie_id]
+            result.append({'user_id': user_id, 'movie_id': movie_id, 'rating': 0, 'timestamp': 0, 'imdb_id': imdb_id})
+            if verbose > 1:
+                progress += 1
+                bar.update(progress)
+
+        if verbose > 1:
+            bar.finish()
+
+        return pd.DataFrame(result, columns=['user_id', 'movie_id', 'rating', 'timestamp', 'imdb_id'])
+
     def fit(self, train, val=None, test=None, d2v_model=None, si_model=None, verbose=1):
 
         config = self.config
@@ -163,20 +209,27 @@ class MPCFModel(object):
         for epoch in range(config['nb_epochs']):
             print "epoch {}, lr {}, lr_si {}, lr_delta_qi {}".format(epoch, lr, lr_si, lr_delta_qi)
 
+            if 'nb_zero_samples' in config:
+                print "sampling zeros ..."
+                zero_samples = self._sample_zeros(config['nb_zero_samples'], verbose=verbose)
+                train_for_epoch = train.append(zero_samples).reset_index(drop=True)
+            else:
+                train_for_epoch = train
+
             # shuffle train
-            train = train.reindex(np.random.permutation(train.index))
+            train_for_epoch = train_for_epoch.reindex(np.random.permutation(train_for_epoch.index))
 
             rating_errors = []
             feature_losses = []
 
             if verbose > 0:
-                total = len(train)
+                total = len(train_for_epoch)
                 bar = progressbar.ProgressBar(max_value=total)
                 bar.start()
                 progress = 0
 
             # train / update model
-            for row in train.itertuples():
+            for row in train_for_epoch.itertuples():
                 user_id, movie_id, rating, imdb_id = row[1], row[2], row[3], row[5]
 
                 u = self.users[user_id]
@@ -312,6 +365,8 @@ if __name__ == "__main__":
     test = pd.read_csv('data/splits/0.2-test.csv')
     #train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
     #train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
+
+    config['nb_zero_samples'] = len(train) * 3
 
     config['experiment_name'] = 'si_e200_tt-0.2_lrdqi_1e-4_no-val'
     side_info_model = True
