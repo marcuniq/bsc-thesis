@@ -292,8 +292,8 @@ class MPCFModel(object):
 
 if __name__ == "__main__":
     config = {'lr': 0.001, 'lr_decay': 5e-4, 'reg_lambda': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
-              'nb_epochs': 50, 'val': True, 'test': True,
-              'save_on_epoch_end': False, 'train_test_split': 0.8, 'train_val_split': 0.9}
+              'nb_epochs': 100, 'val': False, 'test': True,
+              'save_on_epoch_end': False, 'train_test_split': 0.2, 'train_val_split': 0.9}
 
     # ratings_path = 'data/ml-1m/processed/ratings.csv'
     # movies_path = 'data/ml-1m/processed/movies-enhanced.csv'
@@ -302,11 +302,18 @@ if __name__ == "__main__":
     # train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
 
     ratings = pd.read_csv('data/splits/ratings.csv')
-    train = pd.read_csv('data/splits/0.8-train.csv')
-    train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
-    test = pd.read_csv('data/splits/0.8-test.csv')
+    #train = pd.read_csv('data/splits/0.8-train.csv')
+    #val = pd.read_csv('data/splits/0.8-0.9-val.csv')
+    #test = pd.read_csv('data/splits/0.8-test.csv')
+    train = pd.read_csv('data/splits/0.2-train.csv')
+    val = None
+    #train = pd.read_csv('data/splits/0.2-0.9-train.csv')
+    #val = pd.read_csv('data/splits/0.2-0.9-val.csv')
+    test = pd.read_csv('data/splits/0.2-test.csv')
+    #train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
+    #train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
 
-    config['experiment_name'] = 'si_e20_lr-delta-qi-test'
+    config['experiment_name'] = 'si_e200_tt-0.2_lrdqi_1e-4_no-val'
     side_info_model = True
 
     d2v_model = None
@@ -314,12 +321,11 @@ if __name__ == "__main__":
 
     if side_info_model:
         config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
-        #config['d2v_model'] = 'doc2vec-models/doc2vec-model_stopwords-removed'
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         config['si_model'] = True
-        config['lr_si'] = 0.03
-        config['lr_si_decay'] = 2e-2
+        config['lr_si'] = 0.001
+        config['lr_si_decay'] = 5e-4
         config['lr_delta_qi'] = 0.0001
         config['lr_delta_qi_decay'] = 5e-4
 

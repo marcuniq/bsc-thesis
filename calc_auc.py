@@ -73,7 +73,7 @@ if __name__ == '__main__':
         return results.get()
 
     config = {'lr': 0.001, 'lr_decay': 5e-4, 'lambda_bi': 0.06, 'lambda_p': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
-              'nb_epochs': 200, 'save_on_epoch_end': False, 'train_test_split': 0.8}
+              'nb_epochs': 200, 'save_on_epoch_end': False, 'train_test_split': 0.2}
 
     # ratings_path = 'data/ml-1m/processed/ratings.csv'
     # movies_path = 'data/ml-1m/processed/movies-enhanced.csv'
@@ -82,11 +82,11 @@ if __name__ == '__main__':
     # train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
 
     ratings = pd.read_csv('data/splits/ratings.csv')
-    train = pd.read_csv('data/splits/0.8-train.csv')
-    test = pd.read_csv('data/splits/0.8-test.csv')
+    train = pd.read_csv('data/splits/0.2-train.csv')
+    test = pd.read_csv('data/splits/0.2-test.csv')
 
-    config['experiment_name'] = 'si_kabbur-best_e200'
-    side_info_model = True
+    config['experiment_name'] = 'no-si_e200_tt-0.2_no-val'
+    side_info_model = False
 
     d2v_model = None
     si_model = None
@@ -103,11 +103,11 @@ if __name__ == '__main__':
 
         si_model = build_si_model(config['nb_latent_f'], config['nb_d2v_features'], len(train), config['reg_lambda'])
 
-    model = MPCFModel(ratings, config)
-    model.fit(train, test=test, d2v_model=d2v_model, si_model=si_model)
+    #model = MPCFModel(ratings, config)
+    #model.fit(train, test=test, d2v_model=d2v_model, si_model=si_model)
 
-    #model = MPCFModel()
-    #model.load('mpcf-models/2016-04-01_18.45.28_kabbur_best_e200.h5')
+    model = MPCFModel()
+    model.load('mpcf-models/2016-04-18_11.15.30_no-si_e200_tt-0.2_no-val.h5')
 
     # calc AUC #
     print "Calculate AUC..."
