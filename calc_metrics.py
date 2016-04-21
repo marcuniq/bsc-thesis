@@ -236,7 +236,7 @@ if __name__ == '__main__':
     train = pd.read_csv('data/splits/0.2-train.csv')
     test = pd.read_csv('data/splits/0.2-test.csv')
 
-    config['experiment_name'] = 'fcp-test'
+    config['experiment_name'] = 'no-si_e50_tt-0.2_zero-samp-3_no-val'
     side_info_model = False
 
     d2v_model = None
@@ -258,7 +258,7 @@ if __name__ == '__main__':
     #model.fit(train, test=test, d2v_model=d2v_model, si_model=si_model)
 
     model = MPCFModel()
-    model.load('mpcf-models/2016-04-18_18.08.03_no-si_e20_tt-0.2_zero-samp-3_no-val.h5')
+    model.load('mpcf-models/2016-04-21_15.42.48_no-si_e50_tt-0.2_zero-samp-3_no-val.h5')
 
     # calc AUC #
     print "Calculate metrics..."
@@ -277,7 +277,7 @@ if __name__ == '__main__':
                  itertools.repeat(movie_ids),
                  itertools.repeat(metrics_config))
 
-    result = easy_parallize(calc_metrics, params, p=1)#multiprocessing.cpu_count())
+    result = easy_parallize(calc_metrics, params, p=multiprocessing.cpu_count())
 
     print "Saving results ..."
     dt = datetime.datetime.now()
