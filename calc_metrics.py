@@ -12,16 +12,16 @@ from train_mpcf import MPCFModel
 from build_si_model import build_si_model
 
 
-def add_rank(x):
-    x['rank'] = np.mean(x.index)
-    return x
+def add_rank(df):
+    df['rank'] = np.mean(df.index)
+    return df
 
 
-def get_possible_pairs(movie_ids_in_test):
-    all_comb = itertools.product(movie_ids_in_test, movie_ids_in_test)
-    for i, j in all_comb:
-        if i < j:
-            yield i, j
+def get_possible_pairs(rank_movie_tuples):
+    all_comb = itertools.product(rank_movie_tuples, rank_movie_tuples)
+    for (rank_i, movie_i), (rank_j, movie_j) in all_comb:
+        if rank_i < rank_j:
+            yield movie_i, movie_j
 
 
 def get_predicted_ranks(predictions, movie_ids_in_test):
@@ -40,10 +40,10 @@ def get_perfect_ranks(df_movies_in_test, movie_ids_in_test):
 
 
 def calc_fcp(predict_rank, perfect_rank, movie_ids_in_test):
-    nb_test_movies = movie_ids_in_test.size
+    nb_test_movies = len(movie_ids_in_test)
     nb_all_pairs = nb_test_movies * (nb_test_movies - 1) / 2
     nb_correct_pairs = 0
-    for movie_i, movie_j in get_possible_pairs(movie_ids_in_test):
+    for movie_i, movie_j in itertools.product(movie_ids_in_test, movie_ids_in_test):
         predict_rank_i = predict_rank[movie_i]
         predict_rank_j = predict_rank[movie_j]
 
@@ -123,6 +123,9 @@ def calc_metrics(args):
     params, q = args
     user_id, model, train, test, movie_ids, metrics_config = params
 
+    if 'verbose' in metrics_config and metrics_config['verbose'] >= 2:
+        print "processing user_id", user_id
+
     df_movies_in_train = train[train['user_id'] == user_id]
     movie_ids_in_train = df_movies_in_train['movie_id'].unique()
     nb_train_movies = movie_ids_in_train.size
@@ -130,44 +133,52 @@ def calc_metrics(args):
     df_movies_in_test = test[test['user_id'] == user_id]
     df_movies_in_test = df_movies_in_test.sort_values('rating', ascending=False)
     df_movies_in_test = df_movies_in_test.reset_index(drop=True)
-    df_movies_in_test = df_movies_in_test.groupby('rating').apply(lambda x: add_rank(x))
+    df_movies_in_test = df_movies_in_test.groupby('rating').apply(lambda df: add_rank(df))
 
     movie_ids_in_test = df_movies_in_test['movie_id'].unique()
     nb_test_movies = movie_ids_in_test.size
 
     movie_ids_of_hits = df_movies_in_test[df_movies_in_test['rating'] >= 4]['movie_id'].unique()
+    nb_hits = movie_ids_of_hits.size
+
+    if 'verbose' in metrics_config and metrics_config['verbose'] >= 2:
+        print "# hits:", nb_hits, "for user", user_id
+    elif 'verbose' in metrics_config and metrics_config['verbose'] >= 1 and nb_hits == 0:
+        print "0 hits for user", user_id
 
     movie_ids_not_in_train = np.setdiff1d(movie_ids, movie_ids_in_train)
     nb_movies_not_in_train = movie_ids_not_in_train.size
 
     # movie_ids_never_rated = np.setdiff1d(movie_ids_not_in_train, movie_ids_in_test)
 
-    # print "making predictions for user", user_id
     df_predictions = model.predict_for_user(user_id, movie_ids_not_in_train)
     df_predictions['user_id'] = user_id
 
     df_test_movies_in_prediction = df_predictions[df_predictions['movie_id'].isin(movie_ids_in_test)]
     rankings = df_test_movies_in_prediction.index
-    df_hits_in_prediction = df_predictions[df_predictions['movie_id'].isin(movie_ids_of_hits)]
-
-    # calc actual metrics
-    auc = calc_auc(nb_movies_not_in_train, nb_test_movies, rankings)
-    avg_precision = calc_avg_precision(df_hits_in_prediction)
-    precision_recall_at_n = metrics_config['precision_recall_at_n']
-    precision, recall = calc_precision_recall(df_hits_in_prediction, precision_recall_at_n)
-    f1 = 2 * precision * recall / (precision + recall)
-
-    reciprocal_rank = calc_reciprocal_rank(df_hits_in_prediction)
 
     df_test_only_predictions = df_test_movies_in_prediction.reset_index(drop=True)
 
+    # calc actual metrics
+    auc = calc_auc(nb_movies_not_in_train, nb_test_movies, rankings)
+    avg_precision, precision, recall, f1, reciprocal_rank = 0, 0, 0, 0, 0
+    precision_recall_at_n = metrics_config['precision_recall_at_n']
+    if nb_hits > 0:
+        df_hits_in_prediction = df_predictions[df_predictions['movie_id'].isin(movie_ids_of_hits)]
+
+        avg_precision = calc_avg_precision(df_hits_in_prediction)
+        precision, recall = calc_precision_recall(df_hits_in_prediction, precision_recall_at_n)
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall != 0 else 0
+        reciprocal_rank = calc_reciprocal_rank(df_hits_in_prediction)
+
+    # create dics of predicted ranks and perfect ranks for each movie_id in test
     pred_rank_of_test = get_predicted_ranks(df_test_only_predictions, movie_ids_in_test)
     perfect_rank_of_test = get_perfect_ranks(df_movies_in_test, movie_ids_in_test)
 
     fcp = calc_fcp(pred_rank_of_test, perfect_rank_of_test, movie_ids_in_test)
     spearman_rank_corr = calc_spearman_rank_corr(pred_rank_of_test, perfect_rank_of_test, movie_ids_in_test)
 
-    data = {'user_id': user_id, 'nb_train_movies': nb_train_movies, 'nb_test_movies': nb_test_movies,
+    metrics = {'user_id': user_id, 'nb_train_movies': nb_train_movies, 'nb_test_movies': nb_test_movies,
             'nb_movies_not_in_train': nb_movies_not_in_train, 'rankings': [list(rankings)],
             'auc': auc, 'avg_precision': avg_precision, 'f1': f1,
             'recall_at_{}'.format(precision_recall_at_n): recall,
@@ -180,7 +191,7 @@ def calc_metrics(args):
     if q is not None:
         q.put(user_id) # put into queue to indicate job done for this user
 
-    return data, df_predictions
+    return metrics
 
 
 if __name__ == '__main__':
@@ -257,7 +268,7 @@ if __name__ == '__main__':
     nb_movies = movie_ids.size
     nb_users = user_ids.size
 
-    metrics_config = {'precision_recall_at_n': 20}
+    metrics_config = {'precision_recall_at_n': 20, 'verbose': 1}
 
     params = zip(user_ids,
                  itertools.repeat(model),
@@ -266,16 +277,9 @@ if __name__ == '__main__':
                  itertools.repeat(movie_ids),
                  itertools.repeat(metrics_config))
 
-    #p = (params, None)
-    #result = calc_auc(p)
-    result = easy_parallize(calc_metrics, params, p=multiprocessing.cpu_count())
+    result = easy_parallize(calc_metrics, params, p=1)#multiprocessing.cpu_count())
 
     print "Saving results ..."
     dt = datetime.datetime.now()
-    log, predictions = map(list, zip(*result))
-    log = pd.DataFrame(log)
-    log.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_log.csv'.format(dt, config['experiment_name']), index=False)
-    predictions = reduce(lambda x,y: x.append(y), predictions)
-    predictions.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_predictions.csv'.format(dt, config['experiment_name']), index=False)
-
-
+    metrics = pd.DataFrame(result)
+    metrics.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_metrics.csv'.format(dt, config['experiment_name']), index=False)
