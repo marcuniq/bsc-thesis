@@ -347,7 +347,7 @@ class MPCFModel(object):
 if __name__ == "__main__":
     config = {'lr': 0.001, 'lr_decay': 5e-4, 'reg_lambda': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
               'nb_epochs': 20, 'val': False, 'test': True,
-              'save_on_epoch_end': False, 'train_test_split': 0.2, 'train_val_split': 0.9}
+              'save_on_epoch_end': False, 'train_test_split': 0.2}
 
     # ratings_path = 'data/ml-1m/processed/ratings.csv'
     # movies_path = 'data/ml-1m/processed/movies-enhanced.csv'
@@ -363,14 +363,15 @@ if __name__ == "__main__":
     val = None
     #train = pd.read_csv('data/splits/0.2-0.9-train.csv')
     #val = pd.read_csv('data/splits/0.2-0.9-val.csv')
+    #config['train_val_split'] = 0.9
     test = pd.read_csv('data/splits/0.2-test.csv')
     #train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
     #train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
 
     config['nb_zero_samples'] = len(train) * 3
 
-    config['experiment_name'] = 'no-si_e20_tt-0.2_zero-samp-3_no-val'
-    side_info_model = False
+    config['experiment_name'] = 'si_e20_tt-0.2_zero-samp-3_lrdqi_1e-5_no-val'
+    side_info_model = True
 
     d2v_model = None
     si_model = None
@@ -382,7 +383,7 @@ if __name__ == "__main__":
         config['si_model'] = True
         config['lr_si'] = 0.001
         config['lr_si_decay'] = 5e-4
-        config['lr_delta_qi'] = 0.0001
+        config['lr_delta_qi'] = 0.00001
         config['lr_delta_qi_decay'] = 5e-4
         config['si_reg_lambda'] = 0.01
         config['si_nn'] = [config['nb_latent_f'], 200, config['nb_d2v_features']]
