@@ -259,17 +259,18 @@ class MPCFModel(object):
                 # side information model - predict feature vector, calculate feature vector error
                 if d2v_model is not None and si_model is not None and 'si_model' in config and config['si_model']:
                     feature = d2v_model.docvecs['{}.txt'.format(imdb_id)]
+                    qi_reshaped = np.reshape(Q_i, (1, -1))
 
                     calc_loss, get_qi_grad, gradient_step = si_model
 
-                    feature_loss = calc_loss(Q_i, feature)
+                    feature_loss = calc_loss(qi_reshaped, feature)
                     feature_losses.append(feature_loss)
 
-                    delta_qi = get_qi_grad(Q_i, feature)
+                    delta_qi = get_qi_grad(qi_reshaped, feature)
 
                     # update parameters
                     self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) - lr_delta_qi * delta_qi
-                    gradient_step(Q_i, feature, lr_si)
+                    gradient_step(qi_reshaped, feature, lr_si)
 
                 else:
                     self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i)
@@ -383,8 +384,10 @@ if __name__ == "__main__":
         config['lr_si_decay'] = 5e-4
         config['lr_delta_qi'] = 0.0001
         config['lr_delta_qi_decay'] = 5e-4
+        config['si_reg_lambda'] = 0.01
+        config['si_nn'] = [config['nb_latent_f'], 200, config['nb_d2v_features']]
 
-        si_model = build_si_model(config['nb_latent_f'], config['nb_d2v_features'], len(train), config['reg_lambda'])
+        si_model = build_si_model(config['si_nn'], config['si_reg_lambda'])
 
     print "experiment: ", config['experiment_name']
     print config

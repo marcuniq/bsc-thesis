@@ -1,26 +1,33 @@
+import lasagne
 import theano
 import theano.tensor as T
-import numpy as np
 
 
-def build_si_model(dim_Qi, dim_d2v, nb_examples, reg_lambda):
-    Qi, y = T.fvector('Qi'), T.fvector('y')
-    W1 = theano.shared(np.random.randn(dim_Qi, dim_d2v) / np.sqrt(dim_Qi))
-    b1 = theano.shared(np.zeros(dim_d2v))
-    y_predict = Qi.dot(W1) + b1
+def build_si_model(dim, reg_lambda):
+    Qi = T.matrix('Qi', dtype=theano.config.floatX)
+    y = T.vector('y', dtype=theano.config.floatX)
 
-    loss_reg = 1./nb_examples * reg_lambda/2 * (T.sum(T.sqr(W1)))
-    loss = T.sqr(y - y_predict).sum() + loss_reg
+    network = lasagne.layers.InputLayer(shape=(None, dim[0]), input_var=Qi)
+    for i in range(1, len(dim)-1):
+        n_out = dim[i]
+        network = lasagne.layers.DenseLayer(network, num_units=n_out, nonlinearity=lasagne.nonlinearities.rectify)
+    network = lasagne.layers.DenseLayer(network, num_units=dim[-1])
+
+    y_predict = lasagne.layers.get_output(network)
+
+    loss = lasagne.objectives.squared_error(y, y_predict).mean()
+    loss += reg_lambda * lasagne.regularization.regularize_network_params(network, lasagne.regularization.l2)
 
     dQi = theano.grad(loss, Qi)
-    dW1 = theano.grad(loss, W1)
-    db1 = theano.grad(loss, b1)
+    lr = T.scalar('lr', dtype=theano.config.floatX)
 
-    lr = T.scalar('lr')
+    # create parameter update expressions
+    params = lasagne.layers.get_all_params(network, trainable=True)
+    updates = lasagne.updates.sgd(loss, params, lr)
 
     #forward_prop = T.function([Qi], y_predict, allow_input_downcast=True)
     calc_loss = theano.function([Qi, y], loss, allow_input_downcast=True)
     get_qi_grad = theano.function([Qi, y], dQi, allow_input_downcast=True)
-    gradient_step = theano.function([Qi, y, lr], updates=((W1, W1 - lr * dW1), (b1, b1 - lr * db1)), allow_input_downcast=True)
+    gradient_step = theano.function([Qi, y, lr], updates=updates, allow_input_downcast=True)
 
     return calc_loss, get_qi_grad, gradient_step
