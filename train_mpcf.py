@@ -248,7 +248,7 @@ class MPCFModel(object):
                 rating_predict = self.avg_train_rating + b_i + np.dot(P_u, Q_i.T) + local_pref_score
 
                 rating_error = rating - rating_predict
-                rating_errors.append(rating_error)
+                rating_errors.append(float(rating_error))
 
                 # update parameters
                 self.b_i[i] = b_i + lr * (rating_error - reg_lambda * b_i)
@@ -264,7 +264,7 @@ class MPCFModel(object):
                     calc_loss, get_qi_grad, gradient_step = si_model
 
                     feature_loss = calc_loss(qi_reshaped, feature)
-                    feature_losses.append(feature_loss)
+                    feature_losses.append(float(feature_loss))
 
                     delta_qi = get_qi_grad(qi_reshaped, feature)
 
@@ -355,22 +355,27 @@ if __name__ == "__main__":
     # ratings = get_ratings(ratings_path, movies_path, all_subs_path)
     # train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
 
-    ratings = pd.read_csv('data/splits/ratings.csv')
-    #train = pd.read_csv('data/splits/0.8-train.csv')
-    #val = pd.read_csv('data/splits/0.8-0.9-val.csv')
-    #test = pd.read_csv('data/splits/0.8-test.csv')
-    train = pd.read_csv('data/splits/0.2-train.csv')
+    ratings = pd.read_csv('data/splits/ml-100k/ratings.csv')
+
+    config['sparse_item'] = True
+    config['train_test_split'] = 0.2
+    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.2-train.csv'
+    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.2-test.csv'
+
+    train = pd.read_csv(config['train_path'])
+    test = pd.read_csv(config['test_path'])
+
     val = None
-    #train = pd.read_csv('data/splits/0.2-0.9-train.csv')
-    #val = pd.read_csv('data/splits/0.2-0.9-val.csv')
-    #config['train_val_split'] = 0.9
-    test = pd.read_csv('data/splits/0.2-test.csv')
-    #train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
-    #train, val = get_train_test_split(train, train_size=config['train_val_split'], sparse_item=False)
+    do_val = False
+    if do_val:
+        config['train_val_split'] = 0.9
+        config['val'] = True
+        config['val_path'] = 'data/splits/ml-1m/sparse-item/0.2-0.9-val.csv'
+        val = pd.read_csv(config['val_path'])
 
     config['nb_zero_samples'] = len(train) * 3
 
-    config['experiment_name'] = 'si_e20_tt-0.2_zero-samp-3_lrdqi_1e-5_no-val'
+    config['experiment_name'] = 'si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_no-val'
     side_info_model = True
 
     d2v_model = None
@@ -383,10 +388,10 @@ if __name__ == "__main__":
         config['si_model'] = True
         config['lr_si'] = 0.001
         config['lr_si_decay'] = 5e-4
-        config['lr_delta_qi'] = 0.00001
+        config['lr_delta_qi'] = 0.0001
         config['lr_delta_qi_decay'] = 5e-4
         config['si_reg_lambda'] = 0.01
-        config['si_nn'] = [config['nb_latent_f'], 200, config['nb_d2v_features']]
+        config['si_nn'] = [config['nb_latent_f'], config['nb_d2v_features']]
 
         si_model = build_si_model(config['si_nn'], config['si_reg_lambda'])
 

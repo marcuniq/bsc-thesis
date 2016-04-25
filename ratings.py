@@ -18,6 +18,37 @@ def get_ratings(ratings_path, movies_path, all_subs_path):
     return result
 
 
+def retain_all_users(train, test, ratings):
+    user_ids = ratings['user_id'].unique()
+    users_not_retained = set(user_ids)
+
+    while len(users_not_retained) != 0:
+        users_not_retained = set(user_ids)
+        for user_id in user_ids:
+            user_train_ratings = train[train['user_id'] == user_id]
+            user_test_ratings = test[test['user_id'] == user_id]
+
+            is_in_train = True if len(user_train_ratings) != 0 else False
+            is_in_test = True if len(user_test_ratings) != 0 else False
+
+            if is_in_train and is_in_test:
+                users_not_retained.remove(user_id)
+                continue
+
+            users_not_retained.add(user_id)
+            if is_in_train and not is_in_test:
+                random_rating = user_train_ratings.sample(1)
+                train = train[train.index != random_rating.index[0]]
+                test = test.append(random_rating)
+
+            elif is_in_test and not is_in_train:
+                random_rating = user_test_ratings.sample(1)
+                test = test[test.index != random_rating.index[0]]
+                train = train.append(random_rating)
+
+    return train, test
+
+
 def get_train_test_split(ratings, train_size=0.2, sparse_item=True):
     if sparse_item:
         group_key = 'movie_id'
@@ -34,7 +65,6 @@ def get_train_test_split(ratings, train_size=0.2, sparse_item=True):
             return x.sample(train_size)
 
     train = grouped.apply(lambda x: get_samples(x, train_size))
-    train.reset_index(inplace=True, drop=True)
 
     # test = ratings - train
     train_set = set([ tuple(line) for line in train.values.tolist()])
@@ -42,5 +72,11 @@ def get_train_test_split(ratings, train_size=0.2, sparse_item=True):
     test = pd.DataFrame(list(ratings_set.difference(train_set)))
     del train_set, ratings_set
     test.columns = ratings.columns
+
+    if sparse_item:
+        train, test = retain_all_users(train, test, ratings)
+
+    train.reset_index(inplace=True, drop=True)
+    test.reset_index(inplace=True, drop=True)
 
     return train, test

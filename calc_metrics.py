@@ -232,9 +232,9 @@ if __name__ == '__main__':
     # ratings = get_ratings(ratings_path, movies_path, all_subs_path)
     # train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
 
-    ratings = pd.read_csv('data/splits/ratings.csv')
-    train = pd.read_csv('data/splits/0.2-train.csv')
-    test = pd.read_csv('data/splits/0.2-test.csv')
+    ratings = pd.read_csv('data/splits/ml-1m/ratings.csv')
+    train = pd.read_csv('data/splits/ml-1m/sparse-item/0.2-train.csv')
+    test = pd.read_csv('data/splits/ml-1m/sparse-item/0.2-test.csv')
 
     config['experiment_name'] = 'no-si_e50_tt-0.2_zero-samp-3_no-val'
     side_info_model = False
