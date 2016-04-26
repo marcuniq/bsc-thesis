@@ -344,6 +344,9 @@ class MPCFModel(object):
         return history
 
 
+def binarize_ratings(df):
+    df.loc[df['rating'] != 0, 'rating'] = 1
+
 if __name__ == "__main__":
     config = {'lr': 0.001, 'lr_decay': 5e-4, 'reg_lambda': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
               'nb_epochs': 20, 'val': False, 'test': True,
@@ -375,7 +378,15 @@ if __name__ == "__main__":
 
     config['nb_zero_samples'] = len(train) * 3
 
-    config['experiment_name'] = 'si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_no-val'
+    binarize = True
+    if binarize:
+        config['binarize'] = True
+        binarize_ratings(train)
+        binarize_ratings(test)
+        if val:
+            binarize_ratings(val)
+
+    config['experiment_name'] = 'si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_binarize_no-val'
     side_info_model = True
 
     d2v_model = None

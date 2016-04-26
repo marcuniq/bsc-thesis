@@ -194,88 +194,45 @@ def calc_metrics(args):
     return metrics
 
 
-if __name__ == '__main__':
+def easy_parallize(f, params, p=8):
+    from multiprocessing import Pool, Manager
+    pool = Pool(processes=p)
+    m = Manager()
+    q = m.Queue()
 
-    def easy_parallize(f, params, p=8):
-        from multiprocessing import Pool, Manager
-        pool = Pool(processes=p)
-        m = Manager()
-        q = m.Queue()
+    nb_jobs = len(params)
+    bar = progressbar.ProgressBar(max_value=nb_jobs)
 
-        nb_jobs = len(params)
-        bar = progressbar.ProgressBar(max_value=nb_jobs)
+    args = [(i, q) for i in params]
+    results = pool.map_async(f, args)
 
-        args = [(i, q) for i in params]
-        results = pool.map_async(f, args)
+    print "done dispatching..."
+    bar.start()
 
-        print "done dispatching..."
-        bar.start()
+    while not results.ready():
+        complete_count = q.qsize()
+        bar.update(complete_count)
+        time.sleep(.5)
 
-        while not results.ready():
-            complete_count = q.qsize()
-            bar.update(complete_count)
-            time.sleep(.5)
+    bar.finish()
 
-        bar.finish()
+    pool.close()
+    pool.join()
 
-        pool.close()
-        pool.join()
+    return results.get()
 
-        return results.get()
 
-    config = {'lr': 0.001, 'lr_decay': 5e-4, 'reg_lambda': 0.06, 'nb_latent_f': 128, 'nb_user_pref': 2,
-              'nb_epochs': 1, 'save_on_epoch_end': False, 'train_test_split': 0.2, 'test': True}
-
-    # ratings_path = 'data/ml-1m/processed/ratings.csv'
-    # movies_path = 'data/ml-1m/processed/movies-enhanced.csv'
-    # all_subs_path = 'data/subs/all.txt'
-    # ratings = get_ratings(ratings_path, movies_path, all_subs_path)
-    # train, test = get_train_test_split(ratings, train_size=config['train_test_split'], sparse_item=False)
-
-    ratings = pd.read_csv('data/splits/ml-1m/ratings.csv')
-    train = pd.read_csv('data/splits/ml-1m/sparse-item/0.2-train.csv')
-    test = pd.read_csv('data/splits/ml-1m/sparse-item/0.2-test.csv')
-
-    config['experiment_name'] = 'no-si_e50_tt-0.2_zero-samp-3_no-val'
-    side_info_model = False
-
-    d2v_model = None
-    si_model = None
-
-    if side_info_model:
-        config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
-        d2v_model = Doc2Vec.load(config['d2v_model'])
-        config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
-        config['si_model'] = True
-        config['lr_si'] = 0.001
-        config['lr_si_decay'] = 2e-2
-        config['lr_delta_qi'] = 0.00001
-        config['lr_delta_qi_decay'] = 5e-4
-
-        si_model = build_si_model(config['nb_latent_f'], config['nb_d2v_features'], len(train), config['reg_lambda'])
-
-    #model = MPCFModel(ratings, config)
-    #model.fit(train, test=test, d2v_model=d2v_model, si_model=si_model)
-
-    model = MPCFModel()
-    model.load('mpcf-models/2016-04-21_15.42.48_no-si_e50_tt-0.2_zero-samp-3_no-val.h5')
-
-    # calc AUC #
+def run_eval(model, train, test, ratings, config):
     print "Calculate metrics..."
     movie_ids = ratings['movie_id'].unique()
     user_ids = ratings['user_id'].unique()
-
-    nb_movies = movie_ids.size
-    nb_users = user_ids.size
-
-    metrics_config = {'precision_recall_at_n': 20, 'verbose': 1}
 
     params = zip(user_ids,
                  itertools.repeat(model),
                  itertools.repeat(train),
                  itertools.repeat(test),
                  itertools.repeat(movie_ids),
-                 itertools.repeat(metrics_config))
+                 itertools.repeat(config))
 
     result = easy_parallize(calc_metrics, params, p=multiprocessing.cpu_count())
 
@@ -283,3 +240,19 @@ if __name__ == '__main__':
     dt = datetime.datetime.now()
     metrics = pd.DataFrame(result)
     metrics.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_metrics.csv'.format(dt, config['experiment_name']), index=False)
+
+if __name__ == '__main__':
+
+    model = MPCFModel()
+    model.load('mpcf-models/2016-04-26_13.51.58_no-si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_binarize_no-val.h5')
+
+    ratings = pd.read_csv('data/splits/ml-100k/ratings.csv')
+    train = pd.read_csv('data/splits/ml-100k/sparse-item/0.2-train.csv')
+    test = pd.read_csv('data/splits/ml-100k/sparse-item/0.2-test.csv')
+
+    config = {}
+    config['precision_recall_at_n'] = 20
+    config['verbose'] = 1
+    config['experiment_name'] = 'no-si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_binarize_no-val'
+
+    run_eval(model, train, test, ratings, config)
