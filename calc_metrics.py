@@ -4,12 +4,9 @@ import itertools
 import datetime
 import time
 import progressbar
-from gensim.models.doc2vec import Doc2Vec
 import multiprocessing
 
-from ratings import get_ratings, get_train_test_split
-from train_mpcf import MPCFModel
-from build_si_model import build_si_model
+from mpcf import MPCFModel
 
 
 def add_rank(df):
@@ -244,7 +241,7 @@ def run_eval(model, train, test, ratings, config):
 if __name__ == '__main__':
 
     model = MPCFModel()
-    model.load('mpcf-models/2016-04-26_13.51.58_no-si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_binarize_no-val.h5')
+    model.load('mpcf-models/2016-04-26_14.17.48_si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_binarize_no-val.h5')
 
     ratings = pd.read_csv('data/splits/ml-100k/ratings.csv')
     train = pd.read_csv('data/splits/ml-100k/sparse-item/0.2-train.csv')
@@ -253,6 +250,6 @@ if __name__ == '__main__':
     config = {}
     config['precision_recall_at_n'] = 20
     config['verbose'] = 1
-    config['experiment_name'] = 'no-si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_binarize_no-val'
+    config['experiment_name'] = 'si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_binarize_no-val'
 
     run_eval(model, train, test, ratings, config)

@@ -27,3 +27,14 @@ def elapsed_timer():
     yield lambda: elapser()
     end = default_timer()
     elapser = lambda: end-start
+
+
+def movie_to_imdb(ratings):
+    result = {}
+
+    def create_dict(df):
+        result[df['movie_id'].unique()[0]] = df['imdb_id'].unique()[0]
+
+    ratings.groupby('movie_id').apply(lambda df: create_dict(df))
+
+    return result
