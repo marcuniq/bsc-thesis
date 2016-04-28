@@ -135,18 +135,14 @@ class MPCFModel(object):
         return r_predict
 
     def predict_for_user(self, user_id, movie_ids=None):
-        u = self.users[user_id]
         result = []
-
         if movie_ids is not None:
             it = movie_ids
         else:
             it = self.movies.iterkeys()
 
         for movie_id in it:
-            i = self.movies[movie_id]
-            local_pref, local_pref_score = self._get_local_pref(u, i)
-            r_predict = self.avg_train_rating + self.b_i[i] + np.dot(self.P[u,:], self.Q[i,:].T) + local_pref_score
+            r_predict = self.predict(user_id, movie_id)
             result.append({'movie_id': movie_id, 'r_predict': r_predict})
         return pd.DataFrame(result).sort_values('r_predict', ascending=False).reset_index(drop=True)
 

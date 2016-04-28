@@ -1,14 +1,11 @@
 import pandas as pd
 from gensim.models.doc2vec import Doc2Vec
 
-from ratings import get_ratings, get_train_test_split
-from mpcf import MPCFModel
 from build_si_model import build_si_model
 from calc_metrics import run_eval
+from mpcf import MPCFModel
+from utils import binarize_ratings
 from zero_sampler import ZeroSampler
-
-def binarize_ratings(df):
-    df.loc[df['rating'] != 0, 'rating'] = 1
 
 
 def train_mpcf(config):
@@ -25,10 +22,10 @@ def train_mpcf(config):
         zero_sampler = ZeroSampler(ratings)
 
     if config['binarize']:
-        binarize_ratings(train)
-        binarize_ratings(test)
-        if val:
-            binarize_ratings(val)
+        train = binarize_ratings(train, threshold=config['binarize_threshold'])
+        test = binarize_ratings(test, threshold=config['binarize_threshold'])
+        if val is not None:
+            val = binarize_ratings(val, threshold=config['binarize_threshold'])
 
     d2v_model, si_model = None, None
     if config['si_model']:
@@ -43,6 +40,7 @@ def train_mpcf(config):
     model.fit(train, val=val, test=test, d2v_model=d2v_model, si_model=si_model, zero_sampler=zero_sampler)
 
     if config['run_eval']:
+        test = pd.read_csv(config['test_path'])
         run_eval(model, train, test, ratings, config)
 
 
@@ -55,7 +53,7 @@ if __name__ == "__main__":
     config['nb_latent_f'] = 128
     config['nb_user_pref'] = 2
 
-    config['nb_epochs'] = 1
+    config['nb_epochs'] = 100
 
     config['save_on_epoch_end'] = False
 
@@ -75,8 +73,10 @@ if __name__ == "__main__":
     config['zero_sample_factor'] = 3
 
     config['binarize'] = True
+    if config['binarize']:
+        config['binarize_threshold'] = 1
 
-    config['experiment_name'] = 'si_ml-100k_e1_tt-0.2_zero-samp-3_sparse-item_binarize_no-val'
+    config['experiment_name'] = 'si_ml-100k_e100_tt-0.2_zero-samp-3_si-nn-200_sparse-item_binarize_no-val'
 
     config['si_model'] = True
     if config['si_model']:
@@ -94,5 +94,6 @@ if __name__ == "__main__":
     if config['run_eval']:
         config['precision_recall_at_n'] = 20
         config['verbose'] = 1
+        config['hit_threshold'] = 4
 
     train_mpcf(config)

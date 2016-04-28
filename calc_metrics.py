@@ -118,9 +118,9 @@ def calc_auc(nb_movies_not_in_train, nb_test_movies, rankings):
 
 def calc_metrics(args):
     params, q = args
-    user_id, model, train, test, movie_ids, metrics_config = params
+    user_id, model, train, test, movie_ids, config = params
 
-    if 'verbose' in metrics_config and metrics_config['verbose'] >= 2:
+    if 'verbose' in config and config['verbose'] >= 2:
         print "processing user_id", user_id
 
     df_movies_in_train = train[train['user_id'] == user_id]
@@ -135,12 +135,12 @@ def calc_metrics(args):
     movie_ids_in_test = df_movies_in_test['movie_id'].unique()
     nb_test_movies = movie_ids_in_test.size
 
-    movie_ids_of_hits = df_movies_in_test[df_movies_in_test['rating'] >= 4]['movie_id'].unique()
+    movie_ids_of_hits = df_movies_in_test[df_movies_in_test['rating'] >= config['hit_threshold']]['movie_id'].unique()
     nb_hits = movie_ids_of_hits.size
 
-    if 'verbose' in metrics_config and metrics_config['verbose'] >= 2:
+    if 'verbose' in config and config['verbose'] >= 2:
         print "# hits:", nb_hits, "for user", user_id
-    elif 'verbose' in metrics_config and metrics_config['verbose'] >= 1 and nb_hits == 0:
+    elif 'verbose' in config and config['verbose'] >= 1 and nb_hits == 0:
         print "0 hits for user", user_id
 
     movie_ids_not_in_train = np.setdiff1d(movie_ids, movie_ids_in_train)
@@ -159,7 +159,7 @@ def calc_metrics(args):
     # calc actual metrics
     auc = calc_auc(nb_movies_not_in_train, nb_test_movies, rankings)
     avg_precision, precision, recall, f1, reciprocal_rank = 0, 0, 0, 0, 0
-    precision_recall_at_n = metrics_config['precision_recall_at_n']
+    precision_recall_at_n = config['precision_recall_at_n']
     if nb_hits > 0:
         df_hits_in_prediction = df_predictions[df_predictions['movie_id'].isin(movie_ids_of_hits)]
 
@@ -241,7 +241,7 @@ def run_eval(model, train, test, ratings, config):
 if __name__ == '__main__':
 
     model = MPCFModel()
-    model.load('mpcf-models/2016-04-26_14.17.48_si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_binarize_no-val.h5')
+    model.load('mpcf-models/2016-04-26_16.04.19_no-si_ml-100k_e100_tt-0.2_zero-samp-3_sparse-item_binarize_no-val.h5')
 
     ratings = pd.read_csv('data/splits/ml-100k/ratings.csv')
     train = pd.read_csv('data/splits/ml-100k/sparse-item/0.2-train.csv')
@@ -250,6 +250,7 @@ if __name__ == '__main__':
     config = {}
     config['precision_recall_at_n'] = 20
     config['verbose'] = 1
-    config['experiment_name'] = 'si_ml-100k_e20_tt-0.2_zero-samp-3_sparse-item_binarize_no-val'
+    config['experiment_name'] = 'no-si_ml-100k_e100_tt-0.2_zero-samp-3_sparse-item_binarize_no-val'
+    config['hit_threshold'] = 4
 
     run_eval(model, train, test, ratings, config)
