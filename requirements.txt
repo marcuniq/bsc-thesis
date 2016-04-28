@@ -1,0 +1,6 @@
+numpy
+pandas
+gensim
+lasagne
+progressbar2
+deepdish
