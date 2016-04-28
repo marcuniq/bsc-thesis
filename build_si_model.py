@@ -15,7 +15,7 @@ def build_si_model(dim, reg_lambda):
 
     y_predict = lasagne.layers.get_output(network)
 
-    loss = lasagne.objectives.squared_error(y, y_predict).mean()
+    loss = lasagne.objectives.squared_error(y, y_predict).sum()
     loss += reg_lambda * lasagne.regularization.regularize_network_params(network, lasagne.regularization.l2)
 
     dQi = theano.grad(loss, Qi)
