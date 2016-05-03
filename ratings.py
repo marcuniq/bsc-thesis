@@ -19,6 +19,8 @@ def get_ratings(ratings_path, movies_path, all_subs_path):
 
 
 def retain_all_users(train, test, ratings):
+    train = train.reset_index(drop=True)
+    test = test.reset_index(drop=True)
     user_ids = ratings['user_id'].unique()
     users_not_retained = set(user_ids)
 
@@ -38,12 +40,12 @@ def retain_all_users(train, test, ratings):
             users_not_retained.add(user_id)
             if is_in_train and not is_in_test:
                 random_rating = user_train_ratings.sample(1)
-                train = train[train.index != random_rating.index[0]]
+                train = train.drop(random_rating.index)
                 test = test.append(random_rating)
 
             elif is_in_test and not is_in_train:
                 random_rating = user_test_ratings.sample(1)
-                test = test[test.index != random_rating.index[0]]
+                test = test.drop(random_rating.index)
                 train = train.append(random_rating)
 
     return train, test
