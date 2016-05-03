@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from mrec import load_fast_sparse_matrix
 from mrec.item_similarity.recommender import ItemSimilarityRecommender
+from mrec.item_similarity.slim import SLIM
 from scipy.sparse import csr_matrix
 from sklearn.linear_model import SGDRegressor
 from calc_metrics import run_eval
@@ -20,13 +21,16 @@ class SLIM(ItemSimilarityRecommender):
         self.users = None
         self.movies = None
 
-        self.ignore_negative_weights = config['ignore_negative_weights']
+        self.intercepts = None
 
-        self.model = SGDRegressor(penalty='elasticnet', n_iter=config['nb_epochs'],
-                                  fit_intercept=config['fit_intercept'], alpha=config['alpha'],
-                                  l1_ratio=config['l1_ratio'])
+        if config:
+            self.ignore_negative_weights = config['ignore_negative_weights']
+            self.model = SGDRegressor(penalty='elasticnet', n_iter=config['nb_epochs'],
+                                      fit_intercept=config['fit_intercept'], alpha=config['alpha'],
+                                      l1_ratio=config['l1_ratio'])
+            self.intercepts = {}
+
         self.sparse_matrix = None
-
         if ratings is not None:
             self._create_lookup_tables(ratings)
 
@@ -41,11 +45,17 @@ class SLIM(ItemSimilarityRecommender):
 
     def _df_to_sparse_matrix(self, ratings):
         copy = ratings.copy()
-        for user_id, u in self.users.iteritems():
-            copy.loc[copy['user_id'] == user_id, 'user_id'] = u
 
-        for movie_id, i in self.movies.iteritems():
-            copy.loc[copy['movie_id'] == movie_id, 'movie_id'] = i
+        def replace_user_id(df):
+            df['user_id'] = self.users[df['user_id'].unique()[0]]
+            return df
+
+        def replace_movie_id(df):
+            df['movie_id'] = self.movies[df['movie_id'].unique()[0]]
+            return df
+
+        copy = copy.groupby('user_id').apply(lambda df: replace_user_id(df))
+        copy = copy.groupby('movie_id').apply(lambda df: replace_movie_id(df))
 
         row = copy['user_id'].values
         col = copy['movie_id'].values
@@ -64,6 +74,9 @@ class SLIM(ItemSimilarityRecommender):
         w = self.model.coef_
         if self.ignore_negative_weights:
             w[w < 0] = 0
+
+        if 'fit_intercept' in self.config and self.config['fit_intercept']:
+            self.intercepts[j] = self.model.intercept_
         return w
 
     def compute_similarities_from_vec(self, dataset, a):
@@ -81,6 +94,8 @@ class SLIM(ItemSimilarityRecommender):
         u = self.users[user_id]
         i = self.movies[movie_id]
         r_predict = (self.similarity_matrix[i] * self.sparse_matrix[u].T).toarray().flatten()[0]
+        if 'fit_intercept' in self.config and self.config['fit_intercept']:
+            r_predict += self.intercepts[i]
         return r_predict
 
     def predict_for_user(self, user_id, movie_ids=None):
@@ -99,7 +114,7 @@ class SLIM(ItemSimilarityRecommender):
         self.sparse_matrix = self._df_to_sparse_matrix(train)
         super(self.__class__, self).fit(self.sparse_matrix)
 
-
+        config = self.config
         # save model, config and history
         print "Saving model ..."
         dt = datetime.datetime.now()
@@ -108,50 +123,3 @@ class SLIM(ItemSimilarityRecommender):
                           .format(dt, config['experiment_name']), 'w') as f:
             f.write(json.dumps(config))
 
-
-if __name__ == "__main__":
-    config = {}
-
-    config['experiment_name'] = 'slim-test_e5_zero-samp-3'
-
-    config['nb_epochs'] = 100
-
-    config['fit_intercept'] = True
-    config['ignore_negative_weights'] = False
-    config['l1_reg'] = 0.001
-    config['l2_reg'] = 0.0001
-    config['alpha'] = config['l1_reg'] + config['l2_reg']
-    config['l1_ratio'] = config['l1_reg'] / config['alpha']
-
-    config['run_eval'] = True
-    if config['run_eval']:
-        config['precision_recall_at_n'] = 20
-        config['verbose'] = 1
-
-    ratings = pd.read_csv('data/splits/ml-100k/ratings.csv')
-    train = pd.read_csv('data/splits/ml-100k/sparse-item/0.2-train.csv')
-    test = pd.read_csv('data/splits/ml-100k/sparse-item/0.2-test.csv')
-
-    config['zero_sampling'] = False
-    if config['zero_sampling']:
-        config['zero_sample_factor'] = 3
-        config['zero_samples_total'] = len(train) * config['zero_sample_factor']
-
-        zero_sampler = ZeroSampler(ratings)
-        zero_samples = zero_sampler.sample(config['zero_samples_total'], verbose=1)
-        train = train.append(zero_samples).reset_index(drop=True)
-
-    config['binarize'] = True
-    if config['binarize']:
-        config['binarize_threshold'] = 1
-
-    if config['binarize']:
-        train = binarize_ratings(train, threshold=config['binarize_threshold'])
-
-    model = SLIM(ratings, config)
-    model.fit(train)
-
-    config['precision_recall_at_n'] = 20
-    config['verbose'] = 1
-    config['hit_threshold'] = 4
-    run_eval(model, train, test, ratings, config)
