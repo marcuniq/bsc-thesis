@@ -157,8 +157,9 @@ def calc_metrics(args):
     df_test_only_predictions = df_test_movies_in_prediction.reset_index(drop=True)
 
     # calc actual metrics
+    auc, avg_precision, precision, recall, f1, reciprocal_rank, fcp, spearman_rank_corr = 0, 0, 0, 0, 0, 0, 0, 0
+
     auc = calc_auc(nb_movies_not_in_train, nb_test_movies, rankings)
-    avg_precision, precision, recall, f1, reciprocal_rank = 0, 0, 0, 0, 0
     precision_recall_at_n = config['precision_recall_at_n']
     if nb_hits > 0:
         df_hits_in_prediction = df_predictions[df_predictions['movie_id'].isin(movie_ids_of_hits)]
@@ -172,18 +173,19 @@ def calc_metrics(args):
     pred_rank_of_test = get_predicted_ranks(df_test_only_predictions, movie_ids_in_test)
     perfect_rank_of_test = get_perfect_ranks(df_movies_in_test, movie_ids_in_test)
 
-    fcp = calc_fcp(pred_rank_of_test, perfect_rank_of_test, movie_ids_in_test)
+    if nb_test_movies > 1:
+        fcp = calc_fcp(pred_rank_of_test, perfect_rank_of_test, movie_ids_in_test)
     spearman_rank_corr = calc_spearman_rank_corr(pred_rank_of_test, perfect_rank_of_test, movie_ids_in_test)
 
     metrics = {'user_id': user_id, 'nb_train_movies': nb_train_movies, 'nb_test_movies': nb_test_movies,
-            'nb_movies_not_in_train': nb_movies_not_in_train, 'rankings': [list(rankings)],
-            'auc': auc, 'avg_precision': avg_precision, 'f1': f1,
-            'recall_at_{}'.format(precision_recall_at_n): recall,
-            'precision_at_{}'.format(precision_recall_at_n): precision,
-            'reciprocal_rank': reciprocal_rank,
-            'fcp': fcp,
-            'spearman_rank_corr': spearman_rank_corr
-            }
+               'nb_movies_not_in_train': nb_movies_not_in_train, 'rankings': [list(rankings)],
+               'auc': auc, 'avg_precision': avg_precision, 'f1': f1,
+               'recall_at_{}'.format(precision_recall_at_n): recall,
+               'precision_at_{}'.format(precision_recall_at_n): precision,
+               'reciprocal_rank': reciprocal_rank,
+               'fcp': fcp,
+               'spearman_rank_corr': spearman_rank_corr
+               }
 
     if q is not None:
         q.put(user_id) # put into queue to indicate job done for this user
@@ -231,7 +233,13 @@ def run_eval(model, train, test, ratings, config):
                  itertools.repeat(movie_ids),
                  itertools.repeat(config))
 
-    result = easy_parallize(calc_metrics, params, p=multiprocessing.cpu_count())
+    if 'debug_eval' in config and config['debug_eval']:
+        result = []
+        for user_id in user_ids:
+            metrics = calc_metrics(((user_id, model, train, test, movie_ids, config), None))
+            result.append(metrics)
+    else:
+        result = easy_parallize(calc_metrics, params, p=multiprocessing.cpu_count())
 
     print "Saving results ..."
     dt = datetime.datetime.now()
