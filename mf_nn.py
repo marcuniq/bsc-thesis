@@ -140,8 +140,8 @@ class MFNNModel(object):
 
         config = self.config
         lr = config['lr']
-        lr_si = config['lr_si'] if 'lr_si' in config else None
-        lr_delta_qi = config['lr_delta_qi'] if 'lr_delta_qi' in config else None
+        user_pref_lr = config['user_pref_lr'] if 'user_pref_lr' in config else None
+        user_pref_delta_qi_lr = config['user_pref_delta_qi_lr'] if 'user_pref_delta_qi_lr' in config else None
         reg_lambda = config['reg_lambda']
 
         if zero_sampler and 'zero_samples_total' in config:
@@ -155,7 +155,7 @@ class MFNNModel(object):
 
         print "Start training ..."
         for epoch in range(config['nb_epochs']):
-            print "epoch {}, lr {}, lr_si {}, lr_delta_qi {}".format(epoch, lr, lr_si, lr_delta_qi)
+            print "epoch {}, lr {}, user_pref_lr {}, user_pref_delta_qi_lr {}".format(epoch, lr, user_pref_lr, user_pref_delta_qi_lr)
 
             if zero_sampler and 'zero_samples_total' in config:
                 print "sampling zeros ..."
@@ -199,7 +199,7 @@ class MFNNModel(object):
                     pu_reshaped = np.reshape(P_u, (1, -1))
                     movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
 
-                    rating_nn, loss, dQi, dPu = self.user_pref_model.gradient_step(qi_reshaped, pu_reshaped, movie_d2v, rating_nn_target, lr_si)
+                    rating_nn, loss, dQi, dPu = self.user_pref_model.gradient_step(qi_reshaped, pu_reshaped, movie_d2v, rating_nn_target, user_pref_lr)
                     feature_losses.append(float(loss))
                 rating_predict = rating_mf + float(rating_nn)
 
@@ -208,8 +208,8 @@ class MFNNModel(object):
 
                 # update parameters
                 self.b_i[i] = b_i + lr * (rating_error - reg_lambda * b_i)
-                self.P[u,:] = P_u + lr * (rating_error * Q_i - reg_lambda * P_u) - lr_delta_qi * dPu
-                self.Q[i, :] = Q_i + lr * (rating_error * (P_u) - reg_lambda * Q_i) - lr_delta_qi * dQi
+                self.P[u,:] = P_u + lr * (rating_error * Q_i - reg_lambda * P_u) - user_pref_delta_qi_lr * dPu
+                self.Q[i, :] = Q_i + lr * (rating_error * (P_u) - reg_lambda * Q_i) - user_pref_delta_qi_lr * dQi
 
                 # update progess bar
                 if verbose > 0:
@@ -223,11 +223,11 @@ class MFNNModel(object):
             if 'lr_decay' in config:
                 lr *= (1.0 - config['lr_decay'])
 
-            if 'lr_si_decay' in config:
-                lr_si *= (1.0 - config['lr_si_decay'])
+            if 'user_pref_lr_decay' in config:
+                user_pref_lr *= (1.0 - config['user_pref_lr_decay'])
 
-            if 'lr_delta_qi_decay' in config:
-                lr_delta_qi *= (1.0 - config['lr_delta_qi_decay'])
+            if 'user_pref_delta_qi_lr_decay' in config:
+                user_pref_delta_qi_lr *= (1.0 - config['user_pref_delta_qi_lr_decay'])
 
             # report error
             current_rmse = np.sqrt(np.mean(np.square(rating_errors)))
@@ -252,7 +252,7 @@ class MFNNModel(object):
             if 'save_on_epoch_end' in config and config['save_on_epoch_end']:
                 print "Saving model ..."
                 dt = datetime.datetime.now()
-                self.save('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}.h5'.format(dt, config['experiment_name'], epoch))
+                self.save('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}.h5'.format(dt, config['experiment_name'], epoch))
 
         # report error on test set
         test_rmse = []
@@ -269,11 +269,11 @@ class MFNNModel(object):
         # save model, config and history
         print "Saving model ..."
         dt = datetime.datetime.now()
-        self.save('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
-        with open('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
+        self.save('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
+        with open('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
                       .format(dt, config['experiment_name']), 'w') as f:
             f.write(json.dumps(config))
-        with open('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_history.json'
+        with open('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}_history.json'
                               .format(dt, config['experiment_name']), 'w') as f:
             f.write(json.dumps(history))
 

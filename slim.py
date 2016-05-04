@@ -118,8 +118,8 @@ class SLIM(ItemSimilarityRecommender):
         # save model, config and history
         print "Saving model ..."
         dt = datetime.datetime.now()
-        #self.save('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
-        with open('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
+        #self.save('slim-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
+        with open('slim-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
                           .format(dt, config['experiment_name']), 'w') as f:
             f.write(json.dumps(config))
 
