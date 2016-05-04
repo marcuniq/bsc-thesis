@@ -1,7 +1,7 @@
 import pandas as pd
 from gensim.models.doc2vec import Doc2Vec
 
-from build_si_model import build_si_model
+from si_model import SideInfoModel
 from calc_metrics import run_eval
 from mpcf import MPCFModel
 from utils import binarize_ratings
@@ -22,16 +22,19 @@ def train_mpcf(config):
         zero_sampler = ZeroSampler(ratings)
 
     if config['binarize']:
-        train = binarize_ratings(train, threshold=config['binarize_threshold'])
-        test = binarize_ratings(test, threshold=config['binarize_threshold'])
+        train = binarize_ratings(train, pos=config['binarize_pos'], neg=config['binarize_neg'],
+                                 threshold=config['binarize_threshold'])
+        test = binarize_ratings(test, pos=config['binarize_pos'], neg=config['binarize_neg'],
+                                threshold=config['binarize_threshold'])
         if val is not None:
-            val = binarize_ratings(val, threshold=config['binarize_threshold'])
+            val = binarize_ratings(val, pos=config['binarize_pos'], neg=config['binarize_neg'],
+                                   threshold=config['binarize_threshold'])
 
     d2v_model, si_model = None, None
     if config['si_model']:
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
-        si_model = build_si_model(config['si_nn'], config['si_reg_lambda'])
+        si_model = SideInfoModel(config['si_nn'], config['si_reg_lambda'])
 
     print "experiment: ", config['experiment_name']
     print config
@@ -75,6 +78,8 @@ if __name__ == "__main__":
     config['binarize'] = True
     if config['binarize']:
         config['binarize_threshold'] = 1
+        config['binarize_pos'] = 1
+        config['binarize_neg'] = 0
 
     config['experiment_name'] = 'si_ml-100k_e100_tt-0.2_zero-samp-3_si-nn-200_sparse-item_binarize_no-val'
 

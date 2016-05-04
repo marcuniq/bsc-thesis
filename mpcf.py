@@ -154,7 +154,10 @@ class MPCFModel(object):
         lr_delta_qi = config['lr_delta_qi'] if 'lr_delta_qi' in config else None
         reg_lambda = config['reg_lambda']
 
-        self.avg_train_rating = train['rating'].mean()
+        if zero_sampler and 'zero_samples_total' in config:
+            self.avg_train_rating = np.hstack((train['rating'].values, np.zeros((config['zero_samples_total'],)))).mean()
+        else:
+            self.avg_train_rating = train['rating'].mean()
 
         train_rmse = []
         val_rmse = []
@@ -216,16 +219,12 @@ class MPCFModel(object):
                     feature = d2v_model.docvecs['{}.txt'.format(imdb_id)]
                     qi_reshaped = np.reshape(Q_i, (1, -1))
 
-                    calc_loss, get_qi_grad, gradient_step = si_model
+                    feature_loss, delta_qi = si_model.gradient_step(qi_reshaped, feature, lr_si)
 
-                    feature_loss = calc_loss(qi_reshaped, feature)
                     feature_losses.append(float(feature_loss))
-
-                    delta_qi = get_qi_grad(qi_reshaped, feature)
 
                     # update parameters
                     self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) - lr_delta_qi * delta_qi
-                    gradient_step(qi_reshaped, feature, lr_si)
 
                 else:
                     self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i)
