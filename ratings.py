@@ -82,3 +82,10 @@ def get_train_test_split(ratings, train_size=0.2, sparse_item=True):
     test.reset_index(inplace=True, drop=True)
 
     return train, test
+
+
+def remove_ratings_for_movie(ratings, movie_id, rate=0.8):
+    movie_ratings = ratings[ratings['movie_id'] == movie_id]
+    to_remove = movie_ratings.sample(frac=rate)
+    ratings = ratings.drop(to_remove.index)
+    return ratings, to_remove
