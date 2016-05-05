@@ -39,9 +39,9 @@ class UserPrefModel(object):
 
         self.param_values = lasagne.layers.get_all_param_values(self.network)
 
-        self.predict = theano.function([Qi, Pu, movie_d2v], r_predict, allow_input_downcast=True)
+        self.predict = theano.function([Qi, Pu, movie_d2v], r_predict, allow_input_downcast=True, on_unused_input='ignore')
         self.gradient_step = theano.function([Qi, Pu, movie_d2v, r, lr], outputs=[r_predict, loss, dQi, dPu],
-                                        updates=updates, allow_input_downcast=True)
+                                        updates=updates, allow_input_downcast=True, on_unused_input='ignore')
 
     def set_params(self, param_values):
         lasagne.layers.set_all_param_values(self.network, param_values)
