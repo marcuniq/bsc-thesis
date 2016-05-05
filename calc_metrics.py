@@ -6,8 +6,7 @@ import time
 import progressbar
 import multiprocessing
 
-from mpcf import MPCFModel
-
+from utils import easy_parallize
 
 def add_rank(df):
     df['rank'] = np.mean(df.index)
@@ -116,7 +115,7 @@ def calc_auc(nb_movies_not_in_train, nb_test_movies, rankings):
     return auc
 
 
-def calc_metrics(args):
+def calc_user_metrics(args):
     params, q = args
     user_id, model, train, test, movie_ids, config = params
 
@@ -149,7 +148,6 @@ def calc_metrics(args):
     # movie_ids_never_rated = np.setdiff1d(movie_ids_not_in_train, movie_ids_in_test)
 
     df_predictions = model.predict_for_user(user_id, movie_ids_not_in_train)
-    df_predictions['user_id'] = user_id
 
     df_test_movies_in_prediction = df_predictions[df_predictions['movie_id'].isin(movie_ids_in_test)]
     rankings = df_test_movies_in_prediction.index
@@ -190,75 +188,186 @@ def calc_metrics(args):
     if q is not None:
         q.put(user_id) # put into queue to indicate job done for this user
 
+    return metrics, df_predictions[:config['top_n_predictions']]
+
+
+def calc_movie_metrics(args):
+    params, q = args
+    movie_id, model, train, test, user_ids, top_n_predictions, config = params
+
+    if 'verbose' in config and config['verbose'] >= 2:
+        print "processing movie_id", movie_id
+
+    df_ratings_in_train = train[train['movie_id'] == movie_id]
+    if len(df_ratings_in_train) > 0:
+        user_ids_in_train = df_ratings_in_train['user_id'].unique()
+        nb_train_ratings = user_ids_in_train.size
+    else:
+        user_ids_in_train = np.array([])
+        nb_train_ratings = 0
+
+    df_ratings_in_test = test[test['movie_id'] == movie_id]
+    if len(df_ratings_in_test) > 0:
+        df_ratings_in_test = df_ratings_in_test.sort_values('rating', ascending=False)
+        df_ratings_in_test = df_ratings_in_test.reset_index(drop=True)
+        df_ratings_in_test = df_ratings_in_test.groupby('rating').apply(lambda df: add_rank(df))
+
+        user_ids_in_test = df_ratings_in_test['user_id'].unique()
+        nb_test_ratings = user_ids_in_test.size
+
+        user_ids_of_hits = df_ratings_in_test[df_ratings_in_test['rating'] >= config['hit_threshold']]['user_id'].unique()
+        nb_hits = user_ids_of_hits.size
+    else:
+        user_ids_in_test = np.array([])
+        nb_test_ratings = 0
+        user_ids_of_hits = np.array([])
+        nb_hits = 0
+
+    if 'verbose' in config and config['verbose'] >= 2:
+        print "movie_id", movie_id, "# train", nb_train_ratings, "# test", nb_test_ratings, "# hits", nb_hits
+    elif 'verbose' in config and config['verbose'] >= 1:
+        if nb_train_ratings == 0:
+            print "0 train ratings for movie", movie_id
+        if nb_test_ratings == 0:
+            print "0 test ratings for movie", movie_id
+        if nb_hits == 0:
+            print "0 hits for movie", movie_id
+
+    user_ids_not_in_train = np.setdiff1d(user_ids, user_ids_in_train)
+    nb_users_not_in_train = user_ids_not_in_train.size
+
+    # movie_ids_never_rated = np.setdiff1d(user_ids_not_in_train, movie_ids_in_test)
+
+    df_predictions = model.predict_for_movie(movie_id, user_ids_not_in_train)
+
+    auc = 0
+    if nb_test_ratings > 0:
+        df_test_ratings_in_prediction = df_predictions[df_predictions['user_id'].isin(user_ids_in_test)]
+        rankings = df_test_ratings_in_prediction.index
+        auc = calc_auc(nb_users_not_in_train, nb_test_ratings, rankings)
+
+    df_ratings_in_top_n_predictions = top_n_predictions[top_n_predictions['movie_id'] == movie_id]
+    nb_times_in_top_n_predictions = len(df_ratings_in_top_n_predictions)
+
+    metrics = {'movie_id': movie_id, 'nb_train_ratings': nb_train_ratings, 'nb_test_ratings': nb_test_ratings,
+               'nb_times_in_top_n_predictions': nb_times_in_top_n_predictions,
+               'auc': auc}
+
+    if q is not None:
+        q.put(movie_id) # put into queue to indicate job done for this movie
+
     return metrics
 
 
-def easy_parallize(f, params, p=8):
-    from multiprocessing import Pool, Manager
-    pool = Pool(processes=p)
-    m = Manager()
-    q = m.Queue()
+def run_user_metrics(model, train, test, user_ids, movie_ids, config, verbose=0):
+    if verbose:
+        print "Calculate user metrics..."
+    user_params = zip(user_ids,
+                      itertools.repeat(model),
+                      itertools.repeat(train),
+                      itertools.repeat(test),
+                      itertools.repeat(movie_ids),
+                      itertools.repeat(config))
 
-    nb_jobs = len(params)
-    bar = progressbar.ProgressBar(max_value=nb_jobs)
+    if 'eval_in_parallel' in config and config['eval_in_parallel']:
+        if 'pool_size' in config:
+            pool_size = config['pool_size']
+        else:
+            pool_size = multiprocessing.cpu_count()
+        result = easy_parallize(calc_user_metrics, user_params, p=pool_size)
+    else:
+        result = []
+        for user_id in user_ids:
+            user_metrics = calc_user_metrics(((user_id, model, train, test, movie_ids, config), None))
+            result.append(user_metrics)
 
-    args = [(i, q) for i in params]
-    results = pool.map_async(f, args)
+    user_metrics, top_n_predictions = map(list, zip(*result))
+    user_metrics = pd.DataFrame(user_metrics)
+    top_n_predictions = reduce(lambda x, y: x.append(y), top_n_predictions)
 
-    print "done dispatching..."
-    bar.start()
+    return user_metrics, top_n_predictions
 
-    while not results.ready():
-        complete_count = q.qsize()
-        bar.update(complete_count)
-        time.sleep(.5)
 
-    bar.finish()
+def run_movie_metrics(model, train, test, user_ids, movie_ids, top_n_predictions, config, verbose=0):
+    if verbose:
+        print "Calculate movie metrics..."
+    movie_params = zip(movie_ids,
+                       itertools.repeat(model),
+                       itertools.repeat(train),
+                       itertools.repeat(test),
+                       itertools.repeat(user_ids),
+                       itertools.repeat(top_n_predictions),
+                       itertools.repeat(config))
 
-    pool.close()
-    pool.join()
+    if 'eval_in_parallel' in config and config['eval_in_parallel']:
+        if 'pool_size' in config:
+            pool_size = config['pool_size']
+        else:
+            pool_size = multiprocessing.cpu_count()
+        result = easy_parallize(calc_movie_metrics, movie_params, p=pool_size)
+    else:
+        result = []
+        for movie_id in movie_ids:
+            metrics = calc_movie_metrics(((movie_id, model, train, test, user_ids, top_n_predictions, config), None))
+            result.append(metrics)
 
-    return results.get()
+    movie_metrics = pd.DataFrame(result)
+
+    return movie_metrics
 
 
 def run_eval(model, train, test, ratings, config):
-    print "Calculate metrics..."
     movie_ids = ratings['movie_id'].unique()
     user_ids = ratings['user_id'].unique()
 
-    params = zip(user_ids,
-                 itertools.repeat(model),
-                 itertools.repeat(train),
-                 itertools.repeat(test),
-                 itertools.repeat(movie_ids),
-                 itertools.repeat(config))
+    verbose = 'verbose' in config and config['verbose'] > 0
 
-    if 'debug_eval' in config and config['debug_eval']:
-        result = []
-        for user_id in user_ids:
-            metrics = calc_metrics(((user_id, model, train, test, movie_ids, config), None))
-            result.append(metrics)
-    else:
-        result = easy_parallize(calc_metrics, params, p=multiprocessing.cpu_count())
+    user_metrics, top_n_predictions = run_user_metrics(model, train, test, user_ids, movie_ids, config, verbose)
 
-    print "Saving results ..."
+    if verbose:
+        print "Saving user metrics and predictions ..."
     dt = datetime.datetime.now()
-    metrics = pd.DataFrame(result)
-    metrics.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_metrics.csv'.format(dt, config['experiment_name']), index=False)
+    user_metrics.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_user-metrics.csv'
+                        .format(dt, config['experiment_name']), index=False)
+    top_n_predictions.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_top-{}-predictions.csv'
+                             .format(dt, config['experiment_name'], config['top_n_predictions']), index=False)
+
+    if 'run_movie_metrics' in config and config['run_movie_metrics']:
+        movie_metrics = run_movie_metrics(model, train, test, user_ids, movie_ids, top_n_predictions, config)
+
+        if verbose:
+            print "Saving movie metrics ..."
+        movie_metrics.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_movie-metrics.csv'
+                             .format(dt, config['experiment_name']), index=False)
 
 if __name__ == '__main__':
+    from mpcf import MPCFModel
+    from slim import SLIMModel
+    from mf_nn import MFNNModel
 
     model = MPCFModel()
-    model.load('mpcf-models/2016-04-26_16.04.19_no-si_ml-100k_e100_tt-0.2_zero-samp-3_sparse-item_binarize_no-val.h5')
+    model.load('mpcf-models/2016-05-05_13.00.42_no-si_ml-100k_e10_tt-0.7_baseline.h5')
 
     ratings = pd.read_csv('data/splits/ml-100k/ratings.csv')
-    train = pd.read_csv('data/splits/ml-100k/sparse-item/0.2-train.csv')
-    test = pd.read_csv('data/splits/ml-100k/sparse-item/0.2-test.csv')
+    train = pd.read_csv('data/splits/ml-100k/sparse-item/0.7-0.8-train.csv')
+    test = pd.read_csv('data/splits/ml-100k/sparse-item/0.7-0.8-val.csv')
+
+    movie_ids = ratings['movie_id'].unique()
+    user_ids = ratings['user_id'].unique()
 
     config = {}
     config['precision_recall_at_n'] = 20
     config['verbose'] = 1
-    config['experiment_name'] = 'no-si_ml-100k_e100_tt-0.2_zero-samp-3_sparse-item_binarize_no-val'
+    config['experiment_name'] = 'no-si_ml-100k_e10_tt-0.7_baseline'
     config['hit_threshold'] = 4
+    config['top_n_predictions'] = 100
+    config['debug_eval'] = False
+    config['run_movie_metrics'] = False
 
     run_eval(model, train, test, ratings, config)
+
+    #top_n_predictions = pd.read_csv('data/results/2016-05-05_11.37.28_slim_e5_tt-0.7_top-100-predictions.csv')
+    #movie_metrics = run_movie_metrics(model, train, test, user_ids, movie_ids, top_n_predictions, config)
+
+    #dt = datetime.datetime.now()
+    #movie_metrics.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_movie-metrics.csv'.format(dt, config['experiment_name']), index=False)

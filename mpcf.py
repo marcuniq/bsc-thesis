@@ -8,18 +8,13 @@ import deepdish as dd
 import random
 import itertools
 import utils
+from base_recommender import BaseRecommender
 
 
-class MPCFModel(object):
+class MPCFModel(BaseRecommender):
 
     def __init__(self, ratings=None, config=None):
-        self.ratings = ratings
-        self.non_rated = None
-        self.config = config
-
-        self.users = None
-        self.movies = None
-        self.movie_to_imdb = None
+        BaseRecommender.__init__(self, ratings, config)
 
         self.P = None
         self.Q = None
@@ -27,29 +22,17 @@ class MPCFModel(object):
         self.b_i = None
         self.B_u = None
         self.X = None
-        self.g = None
         self.avg_train_rating = None
 
         if ratings is not None and config is not None:
-            self._create_lookup_tables(ratings)
             nb_users = len(self.users)
             nb_movies = len(self.movies)
             nb_latent_f = config['nb_latent_f']
             nb_user_pref = config['nb_user_pref']
             nb_d2v_features = config['nb_d2v_features'] if 'nb_d2v_features' in config else None
-            params = self._init_params(nb_users, nb_movies, nb_latent_f, nb_user_pref, nb_d2v_features)
-            self.set_params(params)
-
-    def _create_lookup_tables(self, ratings):
-        users_unique = ratings['user_id'].unique()
-        nb_users = len(users_unique)
-        self.users = dict(zip(users_unique, range(nb_users))) # lookup table for user_id to zero indexed number
-
-        movies_unique = ratings['movie_id'].unique()
-        nb_movies = len(movies_unique)
-        self.movies = dict(zip(movies_unique, range(nb_movies))) # lookup table for user_id to zero indexed number
-
-        self.movie_to_imdb = utils.movie_to_imdb(ratings)
+            scale = config['init_params_scale'] if 'init_params_scale' in config else 0.001
+            params = self._init_params(nb_users, nb_movies, nb_latent_f, nb_user_pref, nb_d2v_features, scale=scale)
+            self._set_params(params)
 
     def _init_params(self, nb_users, nb_movies, nb_latent_f, nb_user_pref, nb_d2v_features=None, scale=0.001):
         P = np.random.uniform(low=-scale, high=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
@@ -64,11 +47,11 @@ class MPCFModel(object):
             params['X'] = X
         return params
 
-    def get_params(self):
+    def _get_params(self):
         return {'P': self.P, 'Q': self.Q, 'W': self.W, 'b_i': self.b_i, 'B_u': self.B_u,
                 'avg_train_rating': self.avg_train_rating, 'X': self.X}
 
-    def set_params(self, params):
+    def _set_params(self, params):
         self.P = params['P']
         self.Q = params['Q']
         self.W = params['W']
@@ -77,34 +60,6 @@ class MPCFModel(object):
         self.avg_train_rating = params['avg_train_rating'] if 'avg_train_rating' in params else None
 
         self.X = params['X'] if 'X' in params else None
-
-    def save(self, filepath, overwrite=False):
-        """
-        Save parameters; code from Keras
-        """
-        import os.path
-        # if file exists and should not be overwritten
-        if not overwrite and os.path.isfile(filepath):
-            get_input = input
-            if sys.version_info[:2] <= (2, 7):
-                get_input = raw_input
-            overwrite = get_input('[WARNING] %s already exists - overwrite? '
-                                  '[y/n]' % (filepath))
-            while overwrite not in ['y', 'n']:
-                overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
-            if overwrite == 'n':
-                return
-            print('[TIP] Next time specify overwrite=True in save_weights!')
-
-        to_save = {'config': self.config, 'params': self.get_params(), 'users': self.users, 'movies': self.movies}
-        dd.io.save(filepath, to_save)
-
-    def load(self, filepath):
-        loaded = dd.io.load(filepath)
-        self.config = loaded['config']
-        self.set_params(loaded['params'])
-        self.users = loaded['users']
-        self.movies = loaded['movies']
 
     def _get_local_pref(self, u, i):
         max_score = False
@@ -134,19 +89,7 @@ class MPCFModel(object):
         r_predict = self.avg_train_rating + self.b_i[i] + np.dot(self.P[u,:], self.Q[i,:].T) + local_pref_score
         return r_predict
 
-    def predict_for_user(self, user_id, movie_ids=None):
-        result = []
-        if movie_ids is not None:
-            it = movie_ids
-        else:
-            it = self.movies.iterkeys()
-
-        for movie_id in it:
-            r_predict = self.predict(user_id, movie_id)
-            result.append({'movie_id': movie_id, 'r_predict': r_predict})
-        return pd.DataFrame(result).sort_values('r_predict', ascending=False).reset_index(drop=True)
-
-    def fit(self, train, val=None, test=None, d2v_model=None, si_model=None, zero_sampler=None, verbose=1):
+    def fit(self, train, val=None, test=None, d2v_model=None, si_model=None, zero_sampler=None):
 
         config = self.config
         lr = config['lr']
@@ -154,21 +97,27 @@ class MPCFModel(object):
         lr_delta_qi = config['lr_delta_qi'] if 'lr_delta_qi' in config else None
         reg_lambda = config['reg_lambda']
 
-        if zero_sampler and 'zero_samples_total' in config:
-            self.avg_train_rating = np.hstack((train['rating'].values, np.zeros((config['zero_samples_total'],)))).mean()
-        else:
+        if config['use_avg_rating']:
             self.avg_train_rating = train['rating'].mean()
+        else:
+            self.avg_train_rating = 0
+
+        verbose = 'verbose' in config and config['verbose'] > 0
 
         train_rmse = []
         val_rmse = []
         feature_rmse = []
 
-        print "Start training ..."
+        if verbose:
+            print "Start training ..."
+
         for epoch in range(config['nb_epochs']):
-            print "epoch {}, lr {}, lr_si {}, lr_delta_qi {}".format(epoch, lr, lr_si, lr_delta_qi)
+            if verbose:
+                print "epoch {}, lr {}, lr_si {}, lr_delta_qi {}".format(epoch, lr, lr_si, lr_delta_qi)
 
             if zero_sampler and 'zero_samples_total' in config:
-                print "sampling zeros ..."
+                if verbose:
+                    print "sampling zeros ..."
                 zero_samples = zero_sampler.sample(config['zero_samples_total'], verbose=verbose)
                 train_for_epoch = train.append(zero_samples).reset_index(drop=True)
             else:
@@ -180,7 +129,7 @@ class MPCFModel(object):
             rating_errors = []
             feature_losses = []
 
-            if verbose > 0:
+            if verbose:
                 total = len(train_for_epoch)
                 bar = progressbar.ProgressBar(max_value=total)
                 bar.start()
@@ -230,16 +179,18 @@ class MPCFModel(object):
                     self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i)
 
                 # update progess bar
-                if verbose > 0:
+                if verbose:
                     progress += 1
                     bar.update(progress)
 
-            if bar:
+            if verbose:
                 bar.finish()
 
             # lr decay
             if 'lr_decay' in config:
                 lr *= (1.0 - config['lr_decay'])
+            elif 'lr_power_t' in config:
+                lr = config['lr'] / pow(epoch+1, config['lr_power_t'])
 
             if 'lr_si_decay' in config:
                 lr_si *= (1.0 - config['lr_si_decay'])
@@ -250,12 +201,14 @@ class MPCFModel(object):
             # report error
             current_rmse = np.sqrt(np.mean(np.square(rating_errors)))
             train_rmse.append(current_rmse)
-            print "Train RMSE:", current_rmse
+            if verbose:
+                print "Train RMSE:", current_rmse
 
             if d2v_model is not None and 'si_model' in config and config['si_model']:
                 current_feature_rmse = np.sqrt(np.mean(feature_losses))
                 feature_rmse.append(current_feature_rmse)
-                print "Feature RMSE:", current_feature_rmse
+                if verbose:
+                    print "Feature RMSE:", current_feature_rmse
 
             # validation
             if val is not None and 'val' in config and config['val']:
@@ -264,11 +217,14 @@ class MPCFModel(object):
                 # report error
                 current_val_rmse = np.sqrt(np.mean(np.square(val_errors)))
                 val_rmse.append(current_val_rmse)
-                print "Validation RMSE:", current_val_rmse
+                if verbose:
+                    print "Validation RMSE:", current_val_rmse
 
             # save
             if 'save_on_epoch_end' in config and config['save_on_epoch_end']:
-                print "Saving model ..."
+                if verbose:
+                    print "Saving model ..."
+
                 dt = datetime.datetime.now()
                 self.save('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}.h5'.format(dt, config['experiment_name'], epoch))
 
@@ -279,13 +235,15 @@ class MPCFModel(object):
 
             # report error
             test_rmse = np.sqrt(np.mean(np.square(test_errors)))
-            print "Test RMSE:", test_rmse
+            if verbose:
+                print "Test RMSE:", test_rmse
 
         # history
         history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'feature_rmse': feature_rmse, 'test_rmse': test_rmse}
 
         # save model, config and history
-        print "Saving model ..."
+        if verbose:
+            print "Saving model ..."
         dt = datetime.datetime.now()
         self.save('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
         with open('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'

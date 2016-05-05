@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 from calc_metrics import run_eval
-from slim import SLIM
+from slim import SLIMModel
 from utils import binarize_ratings
 from zero_sampler import ZeroSampler
 
@@ -29,33 +29,40 @@ def train_slim(config):
             val = binarize_ratings(val, pos=config['binarize_pos'], neg=config['binarize_neg'],
                                      threshold=config['binarize_threshold'])
 
-    print "experiment: ", config['experiment_name']
-    print config
+    if config['verbose'] > 0:
+        print "experiment: ", config['experiment_name']
+        print config
 
-    model = SLIM(ratings, config)
+    model = SLIMModel(ratings, config)
     model.fit(train)
 
     if config['run_eval']:
         train = pd.read_csv(config['train_path'])
-        test = pd.read_csv(config['test_path'])
+        if config['val']:
+            test = pd.read_csv(config['val_path'])
+        else:
+            test = pd.read_csv(config['test_path'])
+
         run_eval(model, train, test, ratings, config)
 
 
 if __name__ == "__main__":
     config = {}
 
+    config['verbose'] = 1
+
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
 
     config['sparse_item'] = True
-    config['train_test_split'] = 0.2
-    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.2-train.csv'
-    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.2-test.csv'
+    config['train_test_split'] = 0.7
+    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-train.csv'
+    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
     config['test'] = True
 
-    config['val'] = False
+    config['val'] = True
     if config['val']:
-        config['train_val_split'] = 0.9
-        config['val_path'] = 'data/splits/ml-100k/sparse-item/0.2-0.9-val.csv'
+        config['train_val_split'] = 0.8
+        config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
 
     #config['zero_sample_factor'] = 1
 
@@ -65,7 +72,7 @@ if __name__ == "__main__":
         config['binarize_pos'] = 1
         config['binarize_neg'] = 0
 
-    config['experiment_name'] = 'slim_e5_train-intercepts'
+    config['experiment_name'] = 'slim_e5_tt-0.7'
 
     config['nb_epochs'] = 5
 
@@ -79,8 +86,12 @@ if __name__ == "__main__":
     config['run_eval'] = True
     if config['run_eval']:
         config['precision_recall_at_n'] = 20
-        config['verbose'] = 1
         config['hit_threshold'] = 4
         config['debug_eval'] = False
+        config['top_n_predictions'] = 100
+        config['run_movie_metrics'] = False
+
+        config['eval_in_parallel'] = True
+        config['pool_size'] = 2
 
     train_slim(config)

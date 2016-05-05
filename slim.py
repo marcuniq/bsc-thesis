@@ -1,26 +1,22 @@
 import pandas as pd
 import numpy as np
-from mrec import load_fast_sparse_matrix
-from mrec.item_similarity.recommender import ItemSimilarityRecommender
-from mrec.item_similarity.slim import SLIM
+from mrec.sparse import fast_sparse_matrix
 from scipy.sparse import csr_matrix
 from sklearn.linear_model import SGDRegressor
-from calc_metrics import run_eval
 import datetime
 import json
 
 from utils import binarize_ratings
 from zero_sampler import ZeroSampler
+from base_recommender import BaseRecommender
 
 
-class SLIM(ItemSimilarityRecommender):
+class SLIMModel(BaseRecommender):
     def __init__(self, ratings=None, config=None):
-        self.ratings = ratings
-        self.config = config
+        BaseRecommender.__init__(self, ratings, config)
 
-        self.users = None
-        self.movies = None
-
+        self.sparse_matrix = None
+        self.similarity_matrix = None
         self.intercepts = None
 
         if config:
@@ -29,19 +25,6 @@ class SLIM(ItemSimilarityRecommender):
                                       fit_intercept=config['fit_intercept'], alpha=config['alpha'],
                                       l1_ratio=config['l1_ratio'])
             self.intercepts = {}
-
-        self.sparse_matrix = None
-        if ratings is not None:
-            self._create_lookup_tables(ratings)
-
-    def _create_lookup_tables(self, ratings):
-        users_unique = ratings['user_id'].unique()
-        nb_users = len(users_unique)
-        self.users = dict(zip(users_unique, range(nb_users)))  # lookup table for user_id to zero indexed number
-
-        movies_unique = ratings['movie_id'].unique()
-        nb_movies = len(movies_unique)
-        self.movies = dict(zip(movies_unique, range(nb_movies)))  # lookup table for user_id to zero indexed number
 
     def _df_to_sparse_matrix(self, ratings):
         copy = ratings.copy()
@@ -90,6 +73,16 @@ class SLIM(ItemSimilarityRecommender):
         else:
             return 'SLIM({0})'.format(self.model)
 
+    def _get_params(self):
+        params = {'sparse_matrix': self.sparse_matrix, 'similarity_matrix': self.similarity_matrix,
+                  'intercepts': self.intercepts}
+        return params
+
+    def _set_params(self, params):
+        self.sparse_matrix = params['sparse_matrix']
+        self.similarity_matrix = params['similarity_matrix']
+        self.intercepts = params['intercepts']
+
     def predict(self, user_id, movie_id):
         u = self.users[user_id]
         i = self.movies[movie_id]
@@ -98,27 +91,38 @@ class SLIM(ItemSimilarityRecommender):
             r_predict += self.intercepts[i]
         return r_predict
 
-    def predict_for_user(self, user_id, movie_ids=None):
-        result = []
-        if movie_ids is not None:
-            it = movie_ids
-        else:
-            it = self.movies.iterkeys()
-
-        for movie_id in it:
-            r_predict = self.predict(user_id, movie_id)
-            result.append({'movie_id': movie_id, 'r_predict': r_predict})
-        return pd.DataFrame(result).sort_values('r_predict', ascending=False).reset_index(drop=True)
-
     def fit(self, train):
+        """ train is a pandas DataFrame, which has columns:
+                'movie_id'
+                'user_id'
+                'rating'
+        """
         self.sparse_matrix = self._df_to_sparse_matrix(train)
-        super(self.__class__, self).fit(self.sparse_matrix)
+
+        # copied from mrec ItemSimilarityRecommender
+        if not isinstance(self.sparse_matrix, fast_sparse_matrix):
+            dataset = fast_sparse_matrix(self.sparse_matrix)
+        num_users, num_items = dataset.shape
+        # build up a sparse similarity matrix
+        data = []
+        row = []
+        col = []
+        for j in xrange(num_items):
+            w = self.compute_similarities(dataset, j)
+            for k, v in enumerate(w):
+                if v != 0:
+                    data.append(v)
+                    row.append(j)
+                    col.append(k)
+        idx = np.array([row, col], dtype='int32')
+        self.similarity_matrix = csr_matrix((data, idx), (num_items, num_items))
 
         config = self.config
         # save model, config and history
-        print "Saving model ..."
+        if config['verbose']:
+            print "Saving model ..."
         dt = datetime.datetime.now()
-        #self.save('slim-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
+        self.save('slim-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
         with open('slim-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
                           .format(dt, config['experiment_name']), 'w') as f:
             f.write(json.dumps(config))

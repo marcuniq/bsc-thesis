@@ -9,19 +9,14 @@ import progressbar
 from gensim.models import Doc2Vec
 
 import utils
+from base_recommender import BaseRecommender
 from user_pref_model import UserPrefModel
 
 
-class MFNNModel(object):
+class MFNNModel(BaseRecommender):
 
-    def __init__(self, ratings=None, config=None):
-        self.ratings = ratings
-        self.non_rated = None
-        self.config = config
-
-        self.users = None
-        self.movies = None
-        self.movie_to_imdb = None
+    def __init__(self, ratings=None, config=None, user_pref_model=None, d2v_model=None):
+        BaseRecommender.__init__(self, ratings, config)
 
         self.P = None
         self.Q = None
@@ -29,27 +24,15 @@ class MFNNModel(object):
 
         self.avg_train_rating = None
 
-        self.user_pref_model = None
-        self.d2v_model = None
+        self.user_pref_model = user_pref_model
+        self.d2v_model = d2v_model
 
         if ratings is not None and config is not None:
-            self._create_lookup_tables(ratings)
             nb_users = len(self.users)
             nb_movies = len(self.movies)
             nb_latent_f = config['nb_latent_f']
             params = self._init_params(nb_users, nb_movies, nb_latent_f)
-            self.set_params(params)
-
-    def _create_lookup_tables(self, ratings):
-        users_unique = ratings['user_id'].unique()
-        nb_users = len(users_unique)
-        self.users = dict(zip(users_unique, range(nb_users))) # lookup table for user_id to zero indexed number
-
-        movies_unique = ratings['movie_id'].unique()
-        nb_movies = len(movies_unique)
-        self.movies = dict(zip(movies_unique, range(nb_movies))) # lookup table for user_id to zero indexed number
-
-        self.movie_to_imdb = utils.movie_to_imdb(ratings)
+            self._set_params(params)
 
     def _init_params(self, nb_users, nb_movies, nb_latent_f, scale=0.001):
         P = np.random.uniform(low=-scale, high=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
@@ -59,48 +42,21 @@ class MFNNModel(object):
         params = {'P': P, 'Q': Q, 'b_i': b_i}
         return params
 
-    def get_params(self):
-        return {'P': self.P, 'Q': self.Q, 'b_i': self.b_i, 'avg_train_rating': self.avg_train_rating}
+    def _get_params(self):
+        return {'P': self.P, 'Q': self.Q, 'b_i': self.b_i, 'avg_train_rating': self.avg_train_rating,
+                'user_pref_nn_params': self.user_pref_model.param_values}
 
-    def set_params(self, params):
+    def _set_params(self, params):
         self.P = params['P']
         self.Q = params['Q']
         self.b_i = params['b_i']
         self.avg_train_rating = params['avg_train_rating'] if 'avg_train_rating' in params else None
 
-    def save(self, filepath, overwrite=False):
-        """
-        Save parameters; code from Keras
-        """
-        import os.path
-        # if file exists and should not be overwritten
-        if not overwrite and os.path.isfile(filepath):
-            get_input = input
-            if sys.version_info[:2] <= (2, 7):
-                get_input = raw_input
-            overwrite = get_input('[WARNING] %s already exists - overwrite? '
-                                  '[y/n]' % (filepath))
-            while overwrite not in ['y', 'n']:
-                overwrite = get_input('Enter "y" (overwrite) or "n" (cancel).')
-            if overwrite == 'n':
-                return
-            print('[TIP] Next time specify overwrite=True in save_weights!')
-
-        to_save = {'config': self.config, 'params': self.get_params(), 'users': self.users, 'movies': self.movies,
-                   'movie_to_imdb': self.movie_to_imdb, 'user_pref_nn_params': self.user_pref_model.param_values,
-                   'd2v_model': self.d2v_model}
-        dd.io.save(filepath, to_save)
-
-    def load(self, filepath):
-        loaded = dd.io.load(filepath)
-        self.config = loaded['config']
-        self.set_params(loaded['params'])
-        self.users = loaded['users']
-        self.movies = loaded['movies']
-        self.movie_to_imdb = loaded['movie_to_imdb']
-        self.user_pref_model = UserPrefModel(self.config)
-        self.user_pref_model.set_params(loaded['user_pref_nn_params'])
-        self.d2v_model = Doc2Vec.load(self.config['d2v_model'])
+        if self.user_pref_model is None and 'user_pref_nn_params' in params:
+            self.user_pref_model = UserPrefModel(self.config)
+            self.user_pref_model.set_params(params['user_pref_nn_params'])
+        if self.d2v_model is None and 'd2v_model' in self.config:
+            self.d2v_model = Doc2Vec.load(self.config['d2v_model'])
 
     def test(self, data):
         test_errors = []
@@ -124,18 +80,6 @@ class MFNNModel(object):
         r_predict = self.avg_train_rating + self.b_i[i] + np.dot(self.P[u,:], self.Q[i,:].T) + self.user_pref_model.predict(qi, pu, movie_d2v)
         return r_predict
 
-    def predict_for_user(self, user_id, movie_ids=None):
-        result = []
-        if movie_ids is not None:
-            it = movie_ids
-        else:
-            it = self.movies.iterkeys()
-
-        for movie_id in it:
-            r_predict = self.predict(user_id, movie_id)
-            result.append({'movie_id': movie_id, 'r_predict': r_predict})
-        return pd.DataFrame(result).sort_values('r_predict', ascending=False).reset_index(drop=True)
-
     def fit(self, train, val=None, test=None, zero_sampler=None, verbose=1):
 
         config = self.config
@@ -144,21 +88,27 @@ class MFNNModel(object):
         user_pref_delta_qi_lr = config['user_pref_delta_qi_lr'] if 'user_pref_delta_qi_lr' in config else None
         reg_lambda = config['reg_lambda']
 
-        if zero_sampler and 'zero_samples_total' in config:
-            self.avg_train_rating = np.hstack((train['rating'].values, np.zeros((config['zero_samples_total'],)))).mean()
-        else:
+        if config['use_avg_rating']:
             self.avg_train_rating = train['rating'].mean()
+        else:
+            self.avg_train_rating = 0
+
+        verbose = 'verbose' in config and config['verbose'] > 0
 
         train_rmse = []
         val_rmse = []
         feature_rmse = []
 
-        print "Start training ..."
+        if verbose:
+            print "Start training ..."
         for epoch in range(config['nb_epochs']):
-            print "epoch {}, lr {}, user_pref_lr {}, user_pref_delta_qi_lr {}".format(epoch, lr, user_pref_lr, user_pref_delta_qi_lr)
+            if verbose:
+                print "epoch {}, lr {}, user_pref_lr {}, user_pref_delta_qi_lr {}"\
+                    .format(epoch, lr, user_pref_lr, user_pref_delta_qi_lr)
 
             if zero_sampler and 'zero_samples_total' in config:
-                print "sampling zeros ..."
+                if verbose:
+                    print "sampling zeros ..."
                 zero_samples = zero_sampler.sample(config['zero_samples_total'], verbose=verbose)
                 train_for_epoch = train.append(zero_samples).reset_index(drop=True)
             else:
@@ -170,7 +120,7 @@ class MFNNModel(object):
             rating_errors = []
             feature_losses = []
 
-            if verbose > 0:
+            if verbose:
                 total = len(train_for_epoch)
                 bar = progressbar.ProgressBar(max_value=total)
                 bar.start()
@@ -212,16 +162,18 @@ class MFNNModel(object):
                 self.Q[i, :] = Q_i + lr * (rating_error * (P_u) - reg_lambda * Q_i) - user_pref_delta_qi_lr * dQi
 
                 # update progess bar
-                if verbose > 0:
+                if verbose:
                     progress += 1
                     bar.update(progress)
 
-            if bar:
+            if verbose:
                 bar.finish()
 
             # lr decay
             if 'lr_decay' in config:
                 lr *= (1.0 - config['lr_decay'])
+            elif 'lr_power_t' in config:
+                lr = config['lr'] / pow(epoch+1, config['lr_power_t'])
 
             if 'user_pref_lr_decay' in config:
                 user_pref_lr *= (1.0 - config['user_pref_lr_decay'])
@@ -232,12 +184,14 @@ class MFNNModel(object):
             # report error
             current_rmse = np.sqrt(np.mean(np.square(rating_errors)))
             train_rmse.append(current_rmse)
-            print "Train RMSE:", current_rmse
+            if verbose:
+                print "Train RMSE:", current_rmse
 
             if self.user_pref_model is not None:
                 current_feature_rmse = np.sqrt(np.mean(feature_losses))
                 feature_rmse.append(current_feature_rmse)
-                print "Feature RMSE:", current_feature_rmse
+                if verbose:
+                    print "Feature RMSE:", current_feature_rmse
 
             # validation
             if val is not None and 'val' in config and config['val']:
@@ -246,11 +200,13 @@ class MFNNModel(object):
                 # report error
                 current_val_rmse = np.sqrt(np.mean(np.square(val_errors)))
                 val_rmse.append(current_val_rmse)
-                print "Validation RMSE:", current_val_rmse
+                if verbose:
+                    print "Validation RMSE:", current_val_rmse
 
             # save
             if 'save_on_epoch_end' in config and config['save_on_epoch_end']:
-                print "Saving model ..."
+                if verbose:
+                    print "Saving model ..."
                 dt = datetime.datetime.now()
                 self.save('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}.h5'.format(dt, config['experiment_name'], epoch))
 
@@ -261,13 +217,15 @@ class MFNNModel(object):
 
             # report error
             test_rmse = np.sqrt(np.mean(np.square(test_errors)))
-            print "Test RMSE:", test_rmse
+            if verbose:
+                print "Test RMSE:", test_rmse
 
         # history
         history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'feature_rmse': feature_rmse, 'test_rmse': test_rmse}
 
         # save model, config and history
-        print "Saving model ..."
+        if verbose:
+            print "Saving model ..."
         dt = datetime.datetime.now()
         self.save('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
         with open('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'

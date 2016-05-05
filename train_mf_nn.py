@@ -34,8 +34,9 @@ def train_mf_nn(config):
     config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
     user_pref_model = UserPrefModel(config)
 
-    print "experiment: ", config['experiment_name']
-    print config
+    if config['verbose'] > 0:
+        print "experiment: ", config['experiment_name']
+        print config
 
     model = MFNNModel(ratings, config)
     model.user_pref_model = user_pref_model
@@ -43,57 +44,71 @@ def train_mf_nn(config):
     model.fit(train, val=val, test=test, zero_sampler=zero_sampler)
 
     if config['run_eval']:
-        test = pd.read_csv(config['test_path'])
+        if config['val']:
+            test = pd.read_csv(config['val_path'])
+        else:
+            test = pd.read_csv(config['test_path'])
+
         run_eval(model, train, test, ratings, config)
 
 
 if __name__ == "__main__":
     config = {}
+
+    config['verbose'] = 1
+
     config['lr'] = 0.001
     config['lr_decay'] = 5e-4
-    config['reg_lambda'] = 0.06
+    #config['lr_power_t'] = 0.25
+    config['reg_lambda'] = 0.01
     config['nb_latent_f'] = 128
 
-    config['nb_epochs'] = 20
+    config['nb_epochs'] = 10
 
     config['save_on_epoch_end'] = False
 
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
 
     config['sparse_item'] = True
-    config['train_test_split'] = 0.2
-    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.2-train.csv'
-    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.2-test.csv'
+    config['train_test_split'] = 0.7
+    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-train.csv'
+    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
     config['test'] = True
 
-    config['val'] = False
+    config['val'] = True
     if config['val']:
-        config['train_val_split'] = 0.9
-        config['val_path'] = 'data/splits/ml-100k/sparse-item/0.2-0.9-val.csv'
+        config['train_val_split'] = 0.8
+        config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
 
     config['zero_sample_factor'] = 3
 
-    config['binarize'] = True
+    config['binarize'] = False
     if config['binarize']:
         config['binarize_threshold'] = 1
         config['binarize_pos'] = 1
         config['binarize_neg'] = 0
 
-    config['experiment_name'] = 'mf-nn_ml-100k_e20_nn-10-5-1_binarized'
+    config['experiment_name'] = 'mf-nn_ml-100k_e10_tt-0.7_baseline'
+
+    config['use_avg_rating'] = True
 
     config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
     config['user_pref_lr'] = 0.001
     config['user_pref_lr_decay'] = 5e-4
-    config['user_pref_delta_qi_lr'] = 0.0001
+    config['user_pref_delta_qi_lr'] = 0.001
     config['user_pref_delta_qi_lr_decay'] = 5e-4
     config['user_pref_reg_lambda'] = 0.01
-    config['user_pref_hidden_dim'] = [10, 5, 1]
-    config['user_pref_movie_d2v'] = True
+    config['user_pref_hidden_dim'] = [2, 1]
+    config['user_pref_movie_d2v'] = False
 
     config['run_eval'] = True
     if config['run_eval']:
         config['precision_recall_at_n'] = 20
-        config['verbose'] = 1
         config['hit_threshold'] = 4
+        config['top_n_predictions'] = 100
+        config['run_movie_metrics'] = False
+
+        config['eval_in_parallel'] = True
+        config['pool_size'] = 2
 
     train_mf_nn(config)

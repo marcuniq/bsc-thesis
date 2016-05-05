@@ -6,6 +6,9 @@ import unicodedata
 from contextlib import contextmanager
 from timeit import default_timer
 
+import progressbar
+import time
+
 def deaccent(text):
     """
     Remove accentuation from the given string. Input text is either a unicode string or utf8 encoded bytestring.
@@ -47,3 +50,40 @@ def binarize_ratings(df, pos=1, neg=0, threshold=1):
     copy.loc[liked, 'rating'] = pos
     copy.loc[disliked, 'rating'] = neg
     return copy
+
+
+def merge_dicts(*dict_args):
+    '''
+    Given any number of dicts, shallow copy and merge into a new dict,
+    precedence goes to key value pairs in latter dicts.
+    '''
+    result = {k: v for d in dict_args for k, v in d.iteritems()}
+    return result
+
+
+def easy_parallize(f, params, p=8):
+    from multiprocessing import Pool, Manager
+    pool = Pool(processes=p)
+    m = Manager()
+    q = m.Queue()
+
+    nb_jobs = len(params)
+    bar = progressbar.ProgressBar(max_value=nb_jobs)
+
+    args = [(i, q) for i in params]
+    results = pool.map_async(f, args)
+
+    print "done dispatching..."
+    bar.start()
+
+    while not results.ready():
+        complete_count = q.qsize()
+        bar.update(complete_count)
+        time.sleep(.5)
+
+    bar.finish()
+
+    pool.close()
+    pool.join()
+
+    return results.get()

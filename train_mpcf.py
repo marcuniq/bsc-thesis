@@ -36,69 +36,84 @@ def train_mpcf(config):
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         si_model = SideInfoModel(config['si_nn'], config['si_reg_lambda'])
 
-    print "experiment: ", config['experiment_name']
-    print config
+    if config['verbose'] > 0:
+        print "experiment: ", config['experiment_name']
+        print config
 
     model = MPCFModel(ratings, config)
     model.fit(train, val=val, test=test, d2v_model=d2v_model, si_model=si_model, zero_sampler=zero_sampler)
 
     if config['run_eval']:
-        test = pd.read_csv(config['test_path'])
+        if config['val']:
+            test = pd.read_csv(config['val_path'])
+        else:
+            test = pd.read_csv(config['test_path'])
         run_eval(model, train, test, ratings, config)
 
 
 if __name__ == "__main__":
     config = {}
 
-    config['lr'] = 0.001
-    config['lr_decay'] = 5e-4
-    config['reg_lambda'] = 0.06
+    config['verbose'] = 1
+
+    config['lr'] = 0.03
+    #config['lr_decay'] = 5e-4
+    config['lr_power_t'] = 0.25
+    config['reg_lambda'] = 0.01
     config['nb_latent_f'] = 128
     config['nb_user_pref'] = 2
 
-    config['nb_epochs'] = 100
+    config['init_params_scale'] = 0.001
+
+    config['nb_epochs'] = 10
 
     config['save_on_epoch_end'] = False
 
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
 
     config['sparse_item'] = True
-    config['train_test_split'] = 0.2
-    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.2-train.csv'
-    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.2-test.csv'
+    config['train_test_split'] = 0.7
+    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-train.csv'
+    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
     config['test'] = True
 
-    config['val'] = False
+    config['val'] = True
     if config['val']:
-        config['train_val_split'] = 0.9
-        config['val_path'] = 'data/splits/ml-100k/sparse-item/0.2-0.9-val.csv'
+        config['train_val_split'] = 0.8
+        config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
 
     config['zero_sample_factor'] = 3
 
-    config['binarize'] = True
+    config['binarize'] = False
     if config['binarize']:
         config['binarize_threshold'] = 1
         config['binarize_pos'] = 1
         config['binarize_neg'] = 0
 
-    config['experiment_name'] = 'si_ml-100k_e100_tt-0.2_zero-samp-3_si-nn-200_sparse-item_binarize_no-val'
+    config['use_avg_rating'] = True
 
-    config['si_model'] = True
+    config['experiment_name'] = 'no-si_ml-100k_e10_tt-0.7_test'
+
+    config['si_model'] = False
     if config['si_model']:
         config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         config['lr_si'] = 0.001
         config['lr_si_decay'] = 5e-4
-        config['lr_delta_qi'] = 0.0001
+        config['lr_delta_qi'] = 0.001
         config['lr_delta_qi_decay'] = 5e-4
         config['si_reg_lambda'] = 0.01
         config['si_nn'] = [config['nb_latent_f'], config['nb_d2v_features']]
 
-    config['run_eval'] = False
+    config['run_eval'] = True
     if config['run_eval']:
         config['precision_recall_at_n'] = 20
-        config['verbose'] = 1
         config['hit_threshold'] = 4
+        config['top_n_predictions'] = 100
+        config['run_movie_metrics'] = False
+
+        config['eval_in_parallel'] = True
+        config['pool_size'] = 2
 
     train_mpcf(config)
