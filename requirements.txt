@@ -4,3 +4,4 @@ gensim
 lasagne
 progressbar2
 deepdish
+sklearn
