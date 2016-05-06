@@ -4,4 +4,4 @@ gensim
 lasagne
 progressbar2
 deepdish
-sklearn
+scikit-learn
