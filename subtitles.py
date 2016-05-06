@@ -144,7 +144,7 @@ def parse_subtitles(subs_path='data/subs/', overwrite=True):
 
             # clean text
             section_text = re.sub(r"\n|\r|\[.*?\]|<.+?>|[*-]|\"", "", section_text)
-            section_text = re.sub(r"[^a-zA-Z0-9,!'\.\?]", "", section_text) # remove non common characters
+            section_text = re.sub(r"[^a-zA-Z0-9,!'\.\? ]", "", section_text) # remove non common characters
             # section_text = re.sub(r"[^\x00-\x7f]", "", section_text) # remove non-ascii characters
             section_text = re.sub(r"\.{2,}", ".", section_text) # remove all ...
             section_text = section_text.lower().lstrip('!.').strip()
@@ -198,3 +198,7 @@ def check_local_subs(sub_raw_path='data/subs/raw',
         data = response['data']
         print_sub_rating(imdb_id, data)
         #print_non_srt(imdb_id, data)
+
+
+if __name__ == '__main__':
+    parse_subtitles()
