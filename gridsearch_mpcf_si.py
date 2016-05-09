@@ -25,7 +25,7 @@ if __name__ == '__main__':
         'lr_decay': [5e-4, 2e-2],
         'reg_lambda': [0.001, 0.003],
         'nb_latent_f': [96, 128],
-        'nb_user_pref': [2, 4],
+        'nb_user_pref': [2, 4, 8],
         'binarize': [True, False],
         'use_avg_rating': [True, False],
         'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         'lr_delta_qi': [0.001],
         'lr_delta_qi_decay': [5e-4, 2e-2],
         'si_reg_lambda': [0.001],
-        'si_nn_hidden': [[], [200, 100]]
+        'si_nn_hidden': [[], [160], [200, 100]]
     }
 
     param_comb = list(ParameterGrid(params))
