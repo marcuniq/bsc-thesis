@@ -327,9 +327,9 @@ def run_eval(model, train, test, ratings, config):
     if verbose:
         print "Saving user metrics and predictions ..."
     dt = datetime.datetime.now()
-    user_metrics.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_user-metrics.csv'
+    user_metrics.to_csv('metrics/{:%Y-%m-%d_%H.%M.%S}_{}_user-metrics.csv'
                         .format(dt, config['experiment_name']), index=False)
-    top_n_predictions.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_top-{}-predictions.csv'
+    top_n_predictions.to_csv('metrics/{:%Y-%m-%d_%H.%M.%S}_{}_top-{}-predictions.csv'
                              .format(dt, config['experiment_name'], config['top_n_predictions']), index=False)
 
     if 'run_movie_metrics' in config and config['run_movie_metrics']:
@@ -337,7 +337,7 @@ def run_eval(model, train, test, ratings, config):
 
         if verbose:
             print "Saving movie metrics ..."
-        movie_metrics.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_movie-metrics.csv'
+        movie_metrics.to_csv('metrics/{:%Y-%m-%d_%H.%M.%S}_{}_movie-metrics.csv'
                              .format(dt, config['experiment_name']), index=False)
 
 if __name__ == '__main__':
@@ -366,8 +366,8 @@ if __name__ == '__main__':
 
     run_eval(model, train, test, ratings, config)
 
-    #top_n_predictions = pd.read_csv('data/results/2016-05-05_11.37.28_slim_e5_tt-0.7_top-100-predictions.csv')
+    #top_n_predictions = pd.read_csv('metrics/2016-05-05_11.37.28_slim_e5_tt-0.7_top-100-predictions.csv')
     #movie_metrics = run_movie_metrics(model, train, test, user_ids, movie_ids, top_n_predictions, config)
 
     #dt = datetime.datetime.now()
-    #movie_metrics.to_csv('data/results/{:%Y-%m-%d_%H.%M.%S}_{}_movie-metrics.csv'.format(dt, config['experiment_name']), index=False)
+    #movie_metrics.to_csv('metrics/{:%Y-%m-%d_%H.%M.%S}_{}_movie-metrics.csv'.format(dt, config['experiment_name']), index=False)

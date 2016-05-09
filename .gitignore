@@ -4,6 +4,7 @@
 .idea
 
 data
+metrics
 doc2vec-models
 mpcf-models
 mfnn-models
