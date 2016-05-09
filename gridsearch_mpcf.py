@@ -1,4 +1,5 @@
 import multiprocessing
+import os
 
 from sklearn.grid_search import ParameterGrid
 import random
@@ -15,6 +16,11 @@ def local_train_mpcf(args):
         q.put(q)
 
 if __name__ == '__main__':
+
+    abspath = os.path.abspath(__file__)
+    dname = os.path.dirname(abspath)
+    os.chdir(dname)
+
     grid_search = False
     nb_random_samples = 4
     cores = multiprocessing.cpu_count()
