@@ -22,17 +22,18 @@ if __name__ == '__main__':
     os.chdir(dname)
 
     grid_search = False
-    nb_random_samples = 4
+    nb_random_samples = 100
     cores = multiprocessing.cpu_count()
 
     params = {
         'lr': [0.0003, 0.001, 0.003, 0.01],
-        'lr_decay': [5e-4, 2e-2],
-        'reg_lambda': [0.001, 0.003],
-        'nb_latent_f': [32, 64, 128],
-        'nb_user_pref': [2, 4],
+        'lr_decay': [5e-4, 2e-2, 3e-2],
+        'reg_lambda': [0.001, 0.003, 0.01],
+        'nb_latent_f': [32, 64, 96, 128],
+        'nb_user_pref': [2, 4, 8, 16],
         'binarize': [True, False],
         'use_avg_rating': [True, False],
+        'zero_sample_factor': [3, 4, 5],
     }
 
     param_comb = list(ParameterGrid(params))
@@ -42,7 +43,7 @@ if __name__ == '__main__':
 
     config = {}
     config['init_params_scale'] = 0.001
-    config['nb_epochs'] = 5
+    config['nb_epochs'] = 100
     config['save_on_epoch_end'] = False
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
     config['sparse_item'] = True
@@ -55,7 +56,6 @@ if __name__ == '__main__':
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
 
-    config['zero_sample_factor'] = 3
     config['si_model'] = False
 
     config['run_eval'] = True
