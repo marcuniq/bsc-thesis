@@ -89,7 +89,7 @@ class SLIMModel(BaseRecommender):
         r_predict = (self.similarity_matrix[i] * self.sparse_matrix[u].T).toarray().flatten()[0]
         if 'fit_intercept' in self.config and self.config['fit_intercept']:
             r_predict += self.intercepts[i]
-        return r_predict
+        return float(r_predict)
 
     def fit(self, train):
         """ train is a pandas DataFrame, which has columns:
