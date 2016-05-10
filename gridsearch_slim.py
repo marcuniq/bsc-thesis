@@ -73,7 +73,7 @@ if __name__ == '__main__':
             curr_config['binarize_pos'] = 1
             curr_config['binarize_neg'] = 0
 
-        curr_config['experiment_name'] = 'no-si_ml-100k_e{}_tt-0.7_task-{}'.format(curr_config['nb_epochs'], i)
+        curr_config['experiment_name'] = 'slim_ml-100k_e{}_tt-0.7_task-{}'.format(curr_config['nb_epochs'], i)
 
         all_configs.append(curr_config)
 
