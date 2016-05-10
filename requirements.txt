@@ -5,3 +5,4 @@ lasagne
 progressbar2
 deepdish
 scikit-learn
+multiprocessing
