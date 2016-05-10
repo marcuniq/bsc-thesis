@@ -1,4 +1,5 @@
 import multiprocessing
+import os
 
 from gensim.models import Doc2Vec
 from sklearn.grid_search import ParameterGrid
@@ -16,37 +17,45 @@ def local_train_mpcf(args):
         q.put(q)
 
 if __name__ == '__main__':
+
+    # make local dir the working dir, st paths are working
+    abspath = os.path.abspath(__file__)
+    dname = os.path.dirname(abspath)
+    os.chdir(dname)
+
     grid_search = False
     nb_random_samples = 100
     cores = multiprocessing.cpu_count()
 
     params = {
         'lr': [0.0003, 0.001, 0.003, 0.01],
-        'lr_decay': [5e-4, 2e-2],
+        'lr_decay': [5e-4, 2e-2, 3e-2],
         'reg_lambda': [0.001, 0.003],
         'nb_latent_f': [96, 128],
         'nb_user_pref': [2, 4, 8],
         'binarize': [True, False],
         'use_avg_rating': [True, False],
-        'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
+        'zero_sample_factor' : [3, 5],
+        'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5',
+                      'doc2vec-models/2016-05-06_20.23.41_100e_pv-dbow_size50_lr0.025_decay_3e-2_window8_neg5'
                       ],
-        'lr_si': [0.001],
-        'lr_si_decay': [5e-4, 2e-2],
-        'lr_delta_qi': [0.001],
-        'lr_delta_qi_decay': [5e-4, 2e-2],
-        'si_reg_lambda': [0.001],
+        'lr_si': [0.0003, 0.001, 0.003, 0.01],
+        'lr_si_decay': [5e-4, 2e-2, 3e-2],
+        'lr_delta_qi': [0.0003, 0.001, 0.003],
+        'lr_delta_qi_decay': [5e-4, 2e-2, 3e-2],
+        'si_reg_lambda': [0.001, 0.003],
         'si_nn_hidden': [[], [160], [200, 100]]
     }
 
     param_comb = list(ParameterGrid(params))
 
-    if not grid_search: # random search
+    if not grid_search and nb_random_samples < len(param_comb): # random search
         param_comb = random.sample(param_comb, nb_random_samples)
 
     experiment_name = 'si_ml-100k_e{}_tt-0.7_task-{}'
 
     config = {}
-    config['nb_epochs'] = 5
+    config['nb_epochs'] = 20
     config['init_params_scale'] = 0.001
     config['save_on_epoch_end'] = False
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
