@@ -28,14 +28,14 @@ if __name__ == '__main__':
     cores = multiprocessing.cpu_count()
 
     params = {
-        'lr': [0.0003, 0.001, 0.003, 0.01],
+        'lr': [0.001, 0.003, 0.01, 0.03],
         'lr_decay': [5e-4, 2e-2, 3e-2],
         'reg_lambda': [0.001, 0.003],
-        'nb_latent_f': [96, 128],
-        'nb_user_pref': [2, 4, 8],
-        'binarize': [True, False],
-        'use_avg_rating': [True, False],
-        'zero_sample_factor' : [3, 5],
+        'nb_latent_f': [64, 96, 128],
+        'nb_user_pref': [2, 4, 8, 16],
+        'binarize': [False],
+        'use_avg_rating': [True],
+        'zero_sample_factor': [3, 4, 5],
         'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5',
                       'doc2vec-models/2016-05-06_20.23.41_100e_pv-dbow_size50_lr0.025_decay_3e-2_window8_neg5'
                       ],
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     experiment_name = 'si_ml-100k_e{}_tt-0.7_task-{}'
 
     config = {}
-    config['nb_epochs'] = 20
+    config['nb_epochs'] = 100
     config['init_params_scale'] = 0.001
     config['save_on_epoch_end'] = False
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
@@ -69,7 +69,6 @@ if __name__ == '__main__':
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
 
-    config['zero_sample_factor'] = 3
     config['si_model'] = True
 
     config['run_eval'] = True
