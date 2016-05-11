@@ -24,6 +24,6 @@ class SideInfoModel(object):
 
         # create parameter update expressions
         params = lasagne.layers.get_all_params(network, trainable=True)
-        updates = lasagne.updates.sgd(loss, params, lr)
+        updates = lasagne.updates.adagrad(loss, params, lr)
 
         self.gradient_step = theano.function([Qi, y, lr], outputs=[loss, dQi], updates=updates, allow_input_downcast=True)

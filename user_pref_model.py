@@ -35,7 +35,7 @@ class UserPrefModel(object):
 
         # create parameter update expressions
         params = lasagne.layers.get_all_params(self.network, trainable=True)
-        updates = lasagne.updates.sgd(loss, params, lr)
+        updates = lasagne.updates.adagrad(loss, params, lr)
 
         self.param_values = lasagne.layers.get_all_param_values(self.network)
 
