@@ -99,9 +99,9 @@ if __name__ == "__main__":
 
     config['use_avg_rating'] = True
 
-    config['experiment_name'] = 'no-si_ml-100k_e5_tt-0.7_adagrad'
+    config['experiment_name'] = 'si_ml-100k_e5_tt-0.7_adagrad'
 
-    config['si_model'] = False
+    config['si_model'] = True
     if config['si_model']:
         config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
         d2v_model = Doc2Vec.load(config['d2v_model'])
