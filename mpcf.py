@@ -94,7 +94,7 @@ class MPCFModel(BaseRecommender):
         config = self.config
         lr = config['lr']
         si_lr = config['si_lr'] if 'si_lr' in config else None
-        si_lr_delta_qi = config['si_lr_delta_qi'] if 'si_lr_delta_qi' in config else None
+        si_lambda_delta_qi = config['si_lambda_delta_qi'] if 'si_lambda_delta_qi' in config else None
         reg_lambda = config['reg_lambda']
 
         if config['use_avg_rating']:
@@ -108,12 +108,21 @@ class MPCFModel(BaseRecommender):
         val_rmse = []
         feature_rmse = []
 
+        # AdaGrad
+        if 'adagrad' in config and config['adagrad']:
+            ada_cache_b_i = np.zeros_like(self.b_i)
+            ada_cache_B_u = np.zeros_like(self.B_u)
+            ada_cache_P = np.zeros_like(self.P)
+            ada_cache_Q = np.zeros_like(self.Q)
+            ada_cache_W = np.zeros_like(self.W)
+            ada_eps = config['ada_eps']
+
         if verbose:
             print "Start training ..."
 
         for epoch in range(config['nb_epochs']):
             if verbose:
-                print "epoch {}, lr {}, si_lr {}, si_lr_delta_qi {}".format(epoch, lr, si_lr, si_lr_delta_qi)
+                print "epoch {}, lr {}, si_lr {}, si_lambda_delta_qi {}".format(epoch, lr, si_lr, si_lambda_delta_qi)
 
             if zero_sampler and 'zero_samples_total' in config:
                 if verbose:
@@ -157,26 +166,45 @@ class MPCFModel(BaseRecommender):
                 rating_error = rating - rating_predict
                 rating_errors.append(float(rating_error))
 
-                # update parameters
-                self.b_i[i] = b_i + lr * (rating_error - reg_lambda * b_i)
-                self.B_u[u,local_pref] = B_ut + lr * (rating_error - reg_lambda * B_ut)
-                self.P[u,:] = P_u + lr * (rating_error * Q_i - reg_lambda * P_u)
-                self.W[u,local_pref,:] = W_ut + lr * (rating_error * Q_i - reg_lambda * W_ut)
+                # calc gradients
+                db_i = rating_error - reg_lambda * b_i
+                dB_ut = rating_error - reg_lambda * B_ut
+                dP_u = rating_error * Q_i - reg_lambda * P_u
+                dW_ut = rating_error * Q_i - reg_lambda * W_ut
+                dQ_i = rating_error * (P_u + W_ut) - reg_lambda * Q_i
 
                 # side information model - predict feature vector, calculate feature vector error
                 if d2v_model is not None and si_model is not None and 'si_model' in config and config['si_model']:
                     feature = d2v_model.docvecs['{}.txt'.format(imdb_id)]
                     qi_reshaped = np.reshape(Q_i, (1, -1))
 
-                    feature_loss, delta_qi = si_model.gradient_step(qi_reshaped, feature, si_lr)
+                    feature_loss, si_delta_qi = si_model.gradient_step(qi_reshaped, feature, si_lr)
 
                     feature_losses.append(float(feature_loss))
 
                     # update parameters
-                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) - si_lr_delta_qi * delta_qi
+                    dQ_i -= si_lambda_delta_qi * si_delta_qi.flatten()
 
+                # update AdaGrad caches and parameters
+                if 'adagrad' in config and config['adagrad']:
+                    ada_cache_b_i[i] += db_i ** 2
+                    ada_cache_B_u[u, local_pref] += dB_ut ** 2
+                    ada_cache_P[u, :] += dP_u ** 2
+                    ada_cache_Q[i, :] += dQ_i ** 2
+                    ada_cache_W[u, local_pref, :] += dW_ut ** 2
+
+                    # update parameters
+                    self.b_i[i] = b_i + lr * db_i / (np.sqrt(ada_cache_b_i[i]) + ada_eps)
+                    self.B_u[u, local_pref] = B_ut + lr * dB_ut / (np.sqrt(ada_cache_B_u[u,local_pref]) + ada_eps)
+                    self.P[u, :] = P_u + lr * dP_u / (np.sqrt(ada_cache_P[u, :]) + ada_eps)
+                    self.W[u, local_pref, :] = W_ut + lr * dW_ut / (np.sqrt(ada_cache_W[u,local_pref,:]) + ada_eps)
+                    self.Q[i, :] = Q_i + lr * dQ_i / (np.sqrt(ada_cache_Q[i,:]) + ada_eps)
                 else:
-                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i)
+                    self.b_i[i] = b_i + lr * db_i
+                    self.B_u[u, local_pref] = B_ut + lr * dB_ut
+                    self.P[u, :] = P_u + lr * dP_u
+                    self.W[u, local_pref, :] = W_ut + lr * dW_ut
+                    self.Q[i, :] = Q_i + lr * dQ_i
 
                 # update progess bar
                 if verbose:
@@ -194,9 +222,6 @@ class MPCFModel(BaseRecommender):
 
             if 'si_lr_decay' in config:
                 si_lr *= (1.0 - config['si_lr_decay'])
-
-            if 'si_lr_delta_qi_decay' in config:
-                si_lr_delta_qi *= (1.0 - config['si_lr_delta_qi_decay'])
 
             # report error
             current_rmse = np.sqrt(np.mean(np.square(rating_errors)))

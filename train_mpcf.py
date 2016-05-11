@@ -59,16 +59,20 @@ if __name__ == "__main__":
 
     config['verbose'] = 1
 
-    config['lr'] = 0.03
+    config['lr'] = 0.003
     config['lr_decay'] = 5e-4
     #config['lr_power_t'] = 0.25
     config['reg_lambda'] = 0.01
     config['nb_latent_f'] = 128
     config['nb_user_pref'] = 2
 
+    config['adagrad'] = True
+    if config['adagrad']:
+        config['ada_eps'] = 1e-6
+
     config['init_params_scale'] = 0.001
 
-    config['nb_epochs'] = 1
+    config['nb_epochs'] = 5
 
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
 
@@ -95,17 +99,16 @@ if __name__ == "__main__":
 
     config['use_avg_rating'] = True
 
-    config['experiment_name'] = 'si_ml-100k_e1_tt-0.7_test'
+    config['experiment_name'] = 'no-si_ml-100k_e5_tt-0.7_adagrad'
 
-    config['si_model'] = True
+    config['si_model'] = False
     if config['si_model']:
         config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
         config['si_lr'] = 0.001
         config['si_lr_decay'] = 5e-4
-        config['si_lr_delta_qi'] = 0.001
-        config['si_lr_delta_qi_decay'] = 5e-4
+        config['si_lambda_delta_qi'] = 0.001
         config['si_reg_lambda'] = 0.01
         config['si_nn'] = [config['nb_latent_f'], config['nb_d2v_features']]
 

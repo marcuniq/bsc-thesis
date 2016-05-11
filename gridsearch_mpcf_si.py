@@ -42,8 +42,7 @@ if __name__ == '__main__':
                       ],
         'si_lr': [0.0003, 0.001, 0.003, 0.01],
         'si_lr_decay': [5e-4, 2e-2, 3e-2],
-        'si_lr_delta_qi': [0.0003, 0.001, 0.003],
-        'si_lr_delta_qi_decay': [5e-4, 2e-2, 3e-2],
+        'si_lambda_delta_qi': [0.0003, 0.001, 0.003],
         'si_reg_lambda': [0.001, 0.003],
         'si_nn_hidden': [[], [160], [200, 100]]
     }
