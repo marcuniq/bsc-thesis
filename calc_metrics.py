@@ -324,21 +324,12 @@ def run_eval(model, train, test, ratings, config):
 
     user_metrics, top_n_predictions = run_user_metrics(model, train, test, user_ids, movie_ids, config, verbose)
 
-    if verbose:
-        print "Saving user metrics and predictions ..."
-    dt = datetime.datetime.now()
-    user_metrics.to_csv('metrics/{:%Y-%m-%d_%H.%M.%S}_{}_user-metrics.csv'
-                        .format(dt, config['experiment_name']), index=False)
-    top_n_predictions.to_csv('metrics/{:%Y-%m-%d_%H.%M.%S}_{}_top-{}-predictions.csv'
-                             .format(dt, config['experiment_name'], config['top_n_predictions']), index=False)
-
+    movie_metrics = None
     if 'run_movie_metrics' in config and config['run_movie_metrics']:
         movie_metrics = run_movie_metrics(model, train, test, user_ids, movie_ids, top_n_predictions, config)
 
-        if verbose:
-            print "Saving movie metrics ..."
-        movie_metrics.to_csv('metrics/{:%Y-%m-%d_%H.%M.%S}_{}_movie-metrics.csv'
-                             .format(dt, config['experiment_name']), index=False)
+    return user_metrics, top_n_predictions, movie_metrics
+
 
 if __name__ == '__main__':
     from mpcf import MPCFModel

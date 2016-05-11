@@ -4,19 +4,21 @@ import os
 from sklearn.grid_search import ParameterGrid
 import random
 
+from train_eval_save import train_eval_save
 from train_mpcf import train_mpcf
 from utils import merge_dicts, easy_parallize
 
 
 def local_train_mpcf(args):
     config, q = args
-    train_mpcf(config)
+    train_eval_save(config, train_mpcf)
 
     if q is not None:
         q.put(q)
 
 if __name__ == '__main__':
 
+    # make local dir the working dir, st paths are working
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
@@ -26,10 +28,10 @@ if __name__ == '__main__':
     cores = multiprocessing.cpu_count()
 
     params = {
-        'lr': [0.0003, 0.001, 0.003, 0.01],
+        'lr': [0.001, 0.003, 0.01, 0.03],
         'lr_decay': [5e-4, 2e-2, 3e-2],
         'reg_lambda': [0.001, 0.003, 0.01],
-        'nb_latent_f': [32, 64, 96, 128],
+        'nb_latent_f': [64, 96, 128],
         'nb_user_pref': [2, 4, 8, 16],
         'binarize': [True, False],
         'use_avg_rating': [True, False],
@@ -44,7 +46,6 @@ if __name__ == '__main__':
     config = {}
     config['init_params_scale'] = 0.001
     config['nb_epochs'] = 100
-    config['save_on_epoch_end'] = False
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
     config['sparse_item'] = True
     config['train_test_split'] = 0.7
@@ -55,6 +56,9 @@ if __name__ == '__main__':
     if config['val']:
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
+
+    config['model_save_dir'] = 'models/mpcf'
+    config['metrics_save_dir'] = 'metrics/mpcf'
 
     config['si_model'] = False
 

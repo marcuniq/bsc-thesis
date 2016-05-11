@@ -1,9 +1,11 @@
+import os
+
 import pandas as pd
 from gensim.models.doc2vec import Doc2Vec
 
 from si_model import SideInfoModel
-from calc_metrics import run_eval
 from mpcf import MPCFModel
+from train_eval_save import train_eval_save
 from utils import binarize_ratings
 from zero_sampler import ZeroSampler
 
@@ -41,33 +43,32 @@ def train_mpcf(config):
         print config
 
     model = MPCFModel(ratings, config)
-    model.fit(train, val=val, test=test, d2v_model=d2v_model, si_model=si_model, zero_sampler=zero_sampler)
+    loss_history = model.fit(train, val=val, test=test, d2v_model=d2v_model, si_model=si_model, zero_sampler=zero_sampler)
 
-    if config['run_eval']:
-        if config['val']:
-            test = pd.read_csv(config['val_path'])
-        else:
-            test = pd.read_csv(config['test_path'])
-        run_eval(model, train, test, ratings, config)
+    return model, config, loss_history
 
 
 if __name__ == "__main__":
+
+    # make local dir the working dir, st paths are working
+    abspath = os.path.abspath(__file__)
+    dname = os.path.dirname(abspath)
+    os.chdir(dname)
+
     config = {}
 
     config['verbose'] = 1
 
     config['lr'] = 0.03
-    #config['lr_decay'] = 5e-4
-    config['lr_power_t'] = 0.25
+    config['lr_decay'] = 5e-4
+    #config['lr_power_t'] = 0.25
     config['reg_lambda'] = 0.01
     config['nb_latent_f'] = 128
     config['nb_user_pref'] = 2
 
     config['init_params_scale'] = 0.001
 
-    config['nb_epochs'] = 10
-
-    config['save_on_epoch_end'] = False
+    config['nb_epochs'] = 1
 
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
 
@@ -82,6 +83,8 @@ if __name__ == "__main__":
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
 
+    config['model_save_dir'] = 'models/mpcf'
+
     config['zero_sample_factor'] = 3
 
     config['binarize'] = False
@@ -92,19 +95,21 @@ if __name__ == "__main__":
 
     config['use_avg_rating'] = True
 
-    config['experiment_name'] = 'no-si_ml-100k_e10_tt-0.7_test'
+    config['experiment_name'] = 'si_ml-100k_e1_tt-0.7_test'
 
-    config['si_model'] = False
+    config['si_model'] = True
     if config['si_model']:
         config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
-        config['lr_si'] = 0.001
-        config['lr_si_decay'] = 5e-4
-        config['lr_delta_qi'] = 0.001
-        config['lr_delta_qi_decay'] = 5e-4
+        config['si_lr'] = 0.001
+        config['si_lr_decay'] = 5e-4
+        config['si_lr_delta_qi'] = 0.001
+        config['si_lr_delta_qi_decay'] = 5e-4
         config['si_reg_lambda'] = 0.01
         config['si_nn'] = [config['nb_latent_f'], config['nb_d2v_features']]
+
+        config['model_save_dir'] = 'models/mpcf-si'
 
     config['run_eval'] = True
     if config['run_eval']:
@@ -114,6 +119,11 @@ if __name__ == "__main__":
         config['run_movie_metrics'] = False
 
         config['eval_in_parallel'] = True
-        config['pool_size'] = 2
+        config['pool_size'] = 4
 
-    train_mpcf(config)
+        if config['si_model']:
+            config['metrics_save_dir'] = 'metrics/mpcf-si'
+        else:
+            config['metrics_save_dir'] = 'metrics/mpcf'
+
+    train_eval_save(config, train_mpcf)

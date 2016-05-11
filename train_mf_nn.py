@@ -1,6 +1,9 @@
+import os
+
 import pandas as pd
 from gensim.models import Doc2Vec
 
+from train_eval_save import train_eval_save
 from utils import binarize_ratings
 from user_pref_model import UserPrefModel
 from calc_metrics import run_eval
@@ -41,18 +44,18 @@ def train_mf_nn(config):
     model = MFNNModel(ratings, config)
     model.user_pref_model = user_pref_model
     model.d2v_model = d2v_model
-    model.fit(train, val=val, test=test, zero_sampler=zero_sampler)
+    loss_history = model.fit(train, val=val, test=test, zero_sampler=zero_sampler)
 
-    if config['run_eval']:
-        if config['val']:
-            test = pd.read_csv(config['val_path'])
-        else:
-            test = pd.read_csv(config['test_path'])
-
-        run_eval(model, train, test, ratings, config)
+    return model, config, loss_history
 
 
 if __name__ == "__main__":
+
+    # make local dir the working dir, st paths are working
+    abspath = os.path.abspath(__file__)
+    dname = os.path.dirname(abspath)
+    os.chdir(dname)
+
     config = {}
 
     config['verbose'] = 1
@@ -64,8 +67,6 @@ if __name__ == "__main__":
     config['nb_latent_f'] = 128
 
     config['nb_epochs'] = 10
-
-    config['save_on_epoch_end'] = False
 
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
 
@@ -79,6 +80,8 @@ if __name__ == "__main__":
     if config['val']:
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
+
+    config['model_save_dir'] = 'models/mfnn'
 
     config['zero_sample_factor'] = 3
 
@@ -111,4 +114,6 @@ if __name__ == "__main__":
         config['eval_in_parallel'] = True
         config['pool_size'] = 2
 
-    train_mf_nn(config)
+        config['metrics_save_dir'] = 'metrics/mfnn'
+
+    train_eval_save(config, train_mf_nn)

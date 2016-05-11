@@ -5,7 +5,5 @@
 
 data
 metrics
+models
 doc2vec-models
-mpcf-models
-mfnn-models
-slim-models

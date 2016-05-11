@@ -93,8 +93,8 @@ class MPCFModel(BaseRecommender):
 
         config = self.config
         lr = config['lr']
-        lr_si = config['lr_si'] if 'lr_si' in config else None
-        lr_delta_qi = config['lr_delta_qi'] if 'lr_delta_qi' in config else None
+        si_lr = config['si_lr'] if 'si_lr' in config else None
+        si_lr_delta_qi = config['si_lr_delta_qi'] if 'si_lr_delta_qi' in config else None
         reg_lambda = config['reg_lambda']
 
         if config['use_avg_rating']:
@@ -113,7 +113,7 @@ class MPCFModel(BaseRecommender):
 
         for epoch in range(config['nb_epochs']):
             if verbose:
-                print "epoch {}, lr {}, lr_si {}, lr_delta_qi {}".format(epoch, lr, lr_si, lr_delta_qi)
+                print "epoch {}, lr {}, si_lr {}, si_lr_delta_qi {}".format(epoch, lr, si_lr, si_lr_delta_qi)
 
             if zero_sampler and 'zero_samples_total' in config:
                 if verbose:
@@ -168,12 +168,12 @@ class MPCFModel(BaseRecommender):
                     feature = d2v_model.docvecs['{}.txt'.format(imdb_id)]
                     qi_reshaped = np.reshape(Q_i, (1, -1))
 
-                    feature_loss, delta_qi = si_model.gradient_step(qi_reshaped, feature, lr_si)
+                    feature_loss, delta_qi = si_model.gradient_step(qi_reshaped, feature, si_lr)
 
                     feature_losses.append(float(feature_loss))
 
                     # update parameters
-                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) - lr_delta_qi * delta_qi
+                    self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i) - si_lr_delta_qi * delta_qi
 
                 else:
                     self.Q[i,:] = Q_i + lr * (rating_error * (P_u + W_ut) - reg_lambda * Q_i)
@@ -192,11 +192,11 @@ class MPCFModel(BaseRecommender):
             elif 'lr_power_t' in config:
                 lr = config['lr'] / pow(epoch+1, config['lr_power_t'])
 
-            if 'lr_si_decay' in config:
-                lr_si *= (1.0 - config['lr_si_decay'])
+            if 'si_lr_decay' in config:
+                si_lr *= (1.0 - config['si_lr_decay'])
 
-            if 'lr_delta_qi_decay' in config:
-                lr_delta_qi *= (1.0 - config['lr_delta_qi_decay'])
+            if 'si_lr_delta_qi_decay' in config:
+                si_lr_delta_qi *= (1.0 - config['si_lr_delta_qi_decay'])
 
             # report error
             current_rmse = np.sqrt(np.mean(np.square(rating_errors)))
@@ -220,14 +220,6 @@ class MPCFModel(BaseRecommender):
                 if verbose:
                     print "Validation RMSE:", current_val_rmse
 
-            # save
-            if 'save_on_epoch_end' in config and config['save_on_epoch_end']:
-                if verbose:
-                    print "Saving model ..."
-
-                dt = datetime.datetime.now()
-                self.save('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}.h5'.format(dt, config['experiment_name'], epoch))
-
         # report error on test set
         test_rmse = []
         if test is not None and 'test' in config and config['test']:
@@ -240,17 +232,4 @@ class MPCFModel(BaseRecommender):
 
         # history
         history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'feature_rmse': feature_rmse, 'test_rmse': test_rmse}
-
-        # save model, config and history
-        if verbose:
-            print "Saving model ..."
-        dt = datetime.datetime.now()
-        self.save('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
-        with open('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
-                      .format(dt, config['experiment_name']), 'w') as f:
-            f.write(json.dumps(config))
-        with open('mpcf-models/{:%Y-%m-%d_%H.%M.%S}_{}_history.json'
-                              .format(dt, config['experiment_name']), 'w') as f:
-            f.write(json.dumps(history))
-
         return history

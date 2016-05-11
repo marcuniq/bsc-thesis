@@ -5,13 +5,14 @@ from gensim.models import Doc2Vec
 from sklearn.grid_search import ParameterGrid
 import random
 
+from train_eval_save import train_eval_save
 from train_mpcf import train_mpcf
 from utils import merge_dicts, easy_parallize
 
 
 def local_train_mpcf(args):
     config, q = args
-    train_mpcf(config)
+    train_eval_save(config, train_mpcf)
 
     if q is not None:
         q.put(q)
@@ -39,10 +40,10 @@ if __name__ == '__main__':
         'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5',
                       'doc2vec-models/2016-05-06_20.23.41_100e_pv-dbow_size50_lr0.025_decay_3e-2_window8_neg5'
                       ],
-        'lr_si': [0.0003, 0.001, 0.003, 0.01],
-        'lr_si_decay': [5e-4, 2e-2, 3e-2],
-        'lr_delta_qi': [0.0003, 0.001, 0.003],
-        'lr_delta_qi_decay': [5e-4, 2e-2, 3e-2],
+        'si_lr': [0.0003, 0.001, 0.003, 0.01],
+        'si_lr_decay': [5e-4, 2e-2, 3e-2],
+        'si_lr_delta_qi': [0.0003, 0.001, 0.003],
+        'si_lr_delta_qi_decay': [5e-4, 2e-2, 3e-2],
         'si_reg_lambda': [0.001, 0.003],
         'si_nn_hidden': [[], [160], [200, 100]]
     }
@@ -57,7 +58,6 @@ if __name__ == '__main__':
     config = {}
     config['nb_epochs'] = 100
     config['init_params_scale'] = 0.001
-    config['save_on_epoch_end'] = False
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
     config['sparse_item'] = True
     config['train_test_split'] = 0.7
@@ -68,6 +68,9 @@ if __name__ == '__main__':
     if config['val']:
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
+
+    config['model_save_dir'] = 'models/mpcf-si'
+    config['metrics_save_dir'] = 'metrics/mpcf-si'
 
     config['si_model'] = True
 

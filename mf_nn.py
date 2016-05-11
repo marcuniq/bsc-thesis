@@ -203,13 +203,6 @@ class MFNNModel(BaseRecommender):
                 if verbose:
                     print "Validation RMSE:", current_val_rmse
 
-            # save
-            if 'save_on_epoch_end' in config and config['save_on_epoch_end']:
-                if verbose:
-                    print "Saving model ..."
-                dt = datetime.datetime.now()
-                self.save('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}_epoch{}.h5'.format(dt, config['experiment_name'], epoch))
-
         # report error on test set
         test_rmse = []
         if test is not None and 'test' in config and config['test']:
@@ -222,17 +215,4 @@ class MFNNModel(BaseRecommender):
 
         # history
         history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'feature_rmse': feature_rmse, 'test_rmse': test_rmse}
-
-        # save model, config and history
-        if verbose:
-            print "Saving model ..."
-        dt = datetime.datetime.now()
-        self.save('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
-        with open('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
-                      .format(dt, config['experiment_name']), 'w') as f:
-            f.write(json.dumps(config))
-        with open('mfnn-models/{:%Y-%m-%d_%H.%M.%S}_{}_history.json'
-                              .format(dt, config['experiment_name']), 'w') as f:
-            f.write(json.dumps(history))
-
         return history

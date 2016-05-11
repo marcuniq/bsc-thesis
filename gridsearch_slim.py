@@ -4,13 +4,14 @@ import os
 from sklearn.grid_search import ParameterGrid
 import random
 
+from train_eval_save import train_eval_save
 from train_slim import train_slim
 from utils import merge_dicts, easy_parallize
 
 
 def local_train_slim(args):
     config, q = args
-    train_slim(config)
+    train_eval_save(config, train_slim)
 
     if q is not None:
         q.put(q)
@@ -51,6 +52,9 @@ if __name__ == '__main__':
     if config['val']:
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
+
+    config['model_save_dir'] = 'models/slim'
+    config['metrics_save_dir'] = 'metrics/slim'
 
     config['run_eval'] = True
     config['precision_recall_at_n'] = 20

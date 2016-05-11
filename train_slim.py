@@ -1,8 +1,8 @@
 import pandas as pd
-import numpy as np
+import os
 
-from calc_metrics import run_eval
 from slim import SLIMModel
+from train_eval_save import train_eval_save
 from utils import binarize_ratings
 from zero_sampler import ZeroSampler
 
@@ -36,17 +36,16 @@ def train_slim(config):
     model = SLIMModel(ratings, config)
     model.fit(train)
 
-    if config['run_eval']:
-        train = pd.read_csv(config['train_path'])
-        if config['val']:
-            test = pd.read_csv(config['val_path'])
-        else:
-            test = pd.read_csv(config['test_path'])
-
-        run_eval(model, train, test, ratings, config)
+    return model, config, None
 
 
 if __name__ == "__main__":
+
+    # make local dir the working dir, st paths are working
+    abspath = os.path.abspath(__file__)
+    dname = os.path.dirname(abspath)
+    os.chdir(dname)
+
     config = {}
 
     config['verbose'] = 1
@@ -63,6 +62,8 @@ if __name__ == "__main__":
     if config['val']:
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
+
+    config['model_save_dir'] = 'models/slim'
 
     #config['zero_sample_factor'] = 1
 
@@ -94,4 +95,6 @@ if __name__ == "__main__":
         config['eval_in_parallel'] = True
         config['pool_size'] = 2
 
-    train_slim(config)
+        config['metrics_save_dir'] = 'metrics/slim'
+
+    train_eval_save(config, train_slim)
