@@ -3,7 +3,4 @@
 ## Directory-based project format:
 .idea
 
-data
-metrics
-models
-doc2vec-models
+*.pyc

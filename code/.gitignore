@@ -1,0 +1,5 @@
+ipynb/.ipynb_checkpoints/
+data
+metrics
+models
+doc2vec-models

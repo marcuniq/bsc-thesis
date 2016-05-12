@@ -122,7 +122,7 @@ class MPCFModel(BaseRecommender):
 
         for epoch in range(config['nb_epochs']):
             if verbose:
-                print "epoch {}, lr {}, si_lr {}, si_lambda_delta_qi {}".format(epoch, lr, si_lr, si_lambda_delta_qi)
+                print "epoch {}, lr {}, si_lr {}".format(epoch, lr, si_lr)
 
             if zero_sampler and 'zero_samples_total' in config:
                 if verbose:

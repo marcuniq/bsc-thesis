@@ -36,7 +36,7 @@ if __name__ == '__main__':
         'nb_user_pref': [2, 4, 8, 16],
         'binarize': [False],
         'use_avg_rating': [True],
-        'zero_sample_factor': [3, 4, 5],
+        'zero_sample_factor': [3, 5],
         'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5',
                       'doc2vec-models/2016-05-06_20.23.41_100e_pv-dbow_size50_lr0.025_decay_3e-2_window8_neg5'
                       ],
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     experiment_name = 'si_ml-100k_e{}_tt-0.7_task-{}'
 
     config = {}
-    config['nb_epochs'] = 100
+    config['nb_epochs'] = 20
     config['init_params_scale'] = 0.001
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
     config['sparse_item'] = True

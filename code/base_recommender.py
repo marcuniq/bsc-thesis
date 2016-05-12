@@ -1,6 +1,8 @@
-import pandas as pd
-import deepdish as dd
 import sys
+
+import deepdish as dd
+import pandas as pd
+
 import utils
 
 

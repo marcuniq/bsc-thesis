@@ -13,7 +13,7 @@ from random import sample
 from collections import namedtuple
 import progressbar
 from utils import elapsed_timer
-
+from random import shuffle
 
 assert gensim.models.doc2vec.FAST_VERSION > -1, "this will be painfully slow otherwise"
 
@@ -141,6 +141,9 @@ def train_doc2vec(config, all_docs, train_docs=None, test_docs=None):
     for epoch in range(config['nb_epochs']):
         bar.update(epoch)
 
+        # shuffle
+        shuffle(all_docs)
+
         # train
         model.train(all_docs)
 
@@ -190,8 +193,9 @@ if __name__ == "__main__":
 
     config = {'size': 50, 'window': 8, 'min_count': 2, 'alpha': 0.025, 'min_alpha': 0.025,
               'dm': 0, 'negative': 5, 'dm_mean': 0, 'dm_concat': 0, 'hs': 0,
-              'nb_epochs': 20, 'alpha_decay': 5e-4, #'alpha_delta': 0.002,
-              'experiment_name': '20e_pv-dbow_size50_lr0.025_window8_neg5', 'eval': True, 'save_on_epoch_end': False}
+              'nb_epochs': 100, 'alpha_decay': 3e-2, #'alpha_delta': 0.002,
+              'experiment_name': '100e_pv-dbow_size50_lr0.025_decay_3e-2_window8_neg5', 'eval': True, 'save_on_epoch_end': False,
+              'cores': 4}
     train_doc2vec(config, all_docs, train_docs, test_docs)
 
     print("END %s" % str(datetime.datetime.now()))

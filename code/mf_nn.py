@@ -84,8 +84,8 @@ class MFNNModel(BaseRecommender):
 
         config = self.config
         lr = config['lr']
-        user_pref_lr = config['user_pref_lr'] if 'user_pref_lr' in config else None
-        user_pref_delta_qi_lr = config['user_pref_delta_qi_lr'] if 'user_pref_delta_qi_lr' in config else None
+        user_pref_lr = config['user_pref_lr']
+        user_pref_lambda_grad = config['user_pref_lambda_grad']
         reg_lambda = config['reg_lambda']
 
         if config['use_avg_rating']:
@@ -95,6 +95,13 @@ class MFNNModel(BaseRecommender):
 
         verbose = 'verbose' in config and config['verbose'] > 0
 
+        # AdaGrad
+        if 'adagrad' in config and config['adagrad']:
+            ada_cache_b_i = np.zeros_like(self.b_i)
+            ada_cache_P = np.zeros_like(self.P)
+            ada_cache_Q = np.zeros_like(self.Q)
+            ada_eps = config['ada_eps']
+
         train_rmse = []
         val_rmse = []
         feature_rmse = []
@@ -103,8 +110,7 @@ class MFNNModel(BaseRecommender):
             print "Start training ..."
         for epoch in range(config['nb_epochs']):
             if verbose:
-                print "epoch {}, lr {}, user_pref_lr {}, user_pref_delta_qi_lr {}"\
-                    .format(epoch, lr, user_pref_lr, user_pref_delta_qi_lr)
+                print "epoch {}, lr {}, user_pref_lr {}".format(epoch, lr, user_pref_lr)
 
             if zero_sampler and 'zero_samples_total' in config:
                 if verbose:
@@ -143,23 +149,38 @@ class MFNNModel(BaseRecommender):
 
                 rating_nn_target = float(rating - rating_mf)
 
-                if self.user_pref_model is not None:
+                # neural network model
+                qi_reshaped = np.reshape(Q_i, (1, -1))
+                pu_reshaped = np.reshape(P_u, (1, -1))
+                movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
 
-                    qi_reshaped = np.reshape(Q_i, (1, -1))
-                    pu_reshaped = np.reshape(P_u, (1, -1))
-                    movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
+                rating_nn, loss, nn_dQ_i, nn_dP_u = self.user_pref_model.gradient_step(qi_reshaped, pu_reshaped, movie_d2v, rating_nn_target, user_pref_lr)
+                feature_losses.append(float(loss))
 
-                    rating_nn, loss, dQi, dPu = self.user_pref_model.gradient_step(qi_reshaped, pu_reshaped, movie_d2v, rating_nn_target, user_pref_lr)
-                    feature_losses.append(float(loss))
                 rating_predict = rating_mf + float(rating_nn)
 
                 rating_error = rating - rating_predict
                 rating_errors.append(float(rating_error))
 
-                # update parameters
-                self.b_i[i] = b_i + lr * (rating_error - reg_lambda * b_i)
-                self.P[u,:] = P_u + lr * (rating_error * Q_i - reg_lambda * P_u) - user_pref_delta_qi_lr * dPu
-                self.Q[i, :] = Q_i + lr * (rating_error * (P_u) - reg_lambda * Q_i) - user_pref_delta_qi_lr * dQi
+                # calc gradients
+                db_i = rating_error - reg_lambda * b_i
+                dP_u = rating_error * Q_i - reg_lambda * P_u - user_pref_lambda_grad * nn_dP_u.flatten()
+                dQ_i = rating_error * P_u - reg_lambda * Q_i - user_pref_lambda_grad * nn_dQ_i.flatten()
+
+                # update AdaGrad caches and parameters
+                if 'adagrad' in config and config['adagrad']:
+                    ada_cache_b_i[i] += db_i ** 2
+                    ada_cache_P[u, :] += dP_u ** 2
+                    ada_cache_Q[i, :] += dQ_i ** 2
+
+                    # update parameters
+                    self.b_i[i] = b_i + lr * db_i / (np.sqrt(ada_cache_b_i[i]) + ada_eps)
+                    self.P[u, :] = P_u + lr * dP_u / (np.sqrt(ada_cache_P[u, :]) + ada_eps)
+                    self.Q[i, :] = Q_i + lr * dQ_i / (np.sqrt(ada_cache_Q[i, :]) + ada_eps)
+                else:
+                    self.b_i[i] = b_i + lr * db_i
+                    self.P[u, :] = P_u + lr * dP_u
+                    self.Q[i, :] = Q_i + lr * dQ_i
 
                 # update progess bar
                 if verbose:
@@ -177,9 +198,6 @@ class MFNNModel(BaseRecommender):
 
             if 'user_pref_lr_decay' in config:
                 user_pref_lr *= (1.0 - config['user_pref_lr_decay'])
-
-            if 'user_pref_delta_qi_lr_decay' in config:
-                user_pref_delta_qi_lr *= (1.0 - config['user_pref_delta_qi_lr_decay'])
 
             # report error
             current_rmse = np.sqrt(np.mean(np.square(rating_errors)))

@@ -1,8 +1,10 @@
-import numpy as np
 import itertools
+import random
+
+import numpy as np
 import pandas as pd
 import progressbar
-import random
+
 import utils
 
 

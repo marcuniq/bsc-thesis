@@ -13,7 +13,6 @@ class SideInfoModel(object):
             n_out = dim[i]
             network = lasagne.layers.DenseLayer(network, num_units=n_out, nonlinearity=lasagne.nonlinearities.rectify)
         network = lasagne.layers.DenseLayer(network, num_units=dim[-1])
-
         y_predict = lasagne.layers.get_output(network)
 
         loss = lasagne.objectives.squared_error(y, y_predict).sum()
