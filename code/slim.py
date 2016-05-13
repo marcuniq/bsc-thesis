@@ -116,14 +116,3 @@ class SLIMModel(BaseRecommender):
                     col.append(k)
         idx = np.array([row, col], dtype='int32')
         self.similarity_matrix = csr_matrix((data, idx), (num_items, num_items))
-
-        config = self.config
-        # save model, config and history
-        if config['verbose']:
-            print "Saving model ..."
-        dt = datetime.datetime.now()
-        self.save('slim-models/{:%Y-%m-%d_%H.%M.%S}_{}.h5'.format(dt, config['experiment_name']))
-        with open('slim-models/{:%Y-%m-%d_%H.%M.%S}_{}_config.json'
-                          .format(dt, config['experiment_name']), 'w') as f:
-            f.write(json.dumps(config))
-

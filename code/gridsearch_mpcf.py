@@ -14,7 +14,7 @@ def local_train_mpcf(args):
     train_eval_save(config, train_mpcf)
 
     if q is not None:
-        q.put(q)
+        q.put(1)
 
 if __name__ == '__main__':
 
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     os.chdir(dname)
 
     grid_search = False
-    nb_random_samples = 20
+    nb_random_samples = 24
     cores = multiprocessing.cpu_count()
 
     params = {

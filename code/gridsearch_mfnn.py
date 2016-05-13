@@ -6,13 +6,13 @@ from sklearn.grid_search import ParameterGrid
 import random
 
 from train_eval_save import train_eval_save
-from train_mpcf import train_mpcf
+from train_mfnn import train_mfnn
 from utils import merge_dicts, easy_parallize
 
 
-def local_train_mpcf(args):
+def local_train_mfnn(args):
     config, q = args
-    train_eval_save(config, train_mpcf)
+    train_eval_save(config, train_mfnn)
 
     if q is not None:
         q.put(1)
@@ -33,17 +33,16 @@ if __name__ == '__main__':
         'lr_decay': [5e-4, 2e-2],
         'reg_lambda': [0.001, 0.003, 0.01],
         'nb_latent_f': [64, 96, 128],
-        'nb_user_pref': [2, 4, 8],
         'binarize': [True, False],
         'use_avg_rating': [True, False],
         'zero_sample_factor': [3, 5],
         'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
                       ],
-        'si_lr': [0.0003, 0.001, 0.003, 0.01],
-        'si_lr_decay': [5e-4, 2e-2],
-        'si_lambda_delta_qi': [0.0003, 0.001, 0.003],
-        'si_reg_lambda': [0.001, 0.003],
-        'si_nn_hidden': [[], [160]]
+        'user_pref_lr': [0.0003, 0.001, 0.003, 0.01],
+        'user_pref_lr_decay': [5e-4, 2e-2],
+        'user_pref_lambda_grad': [0.0003, 0.001, 0.003],
+        'user_pref_reg_lambda': [0.001, 0.003],
+        'user_pref_hidden_dim': [[4, 1], [10, 1], [100, 1]]
     }
 
     param_comb = list(ParameterGrid(params))
@@ -51,11 +50,10 @@ if __name__ == '__main__':
     if not grid_search and nb_random_samples < len(param_comb): # random search
         param_comb = random.sample(param_comb, nb_random_samples)
 
-    experiment_name = 'si_ml-1m_e{}_tt-0.2_task-{}'
+    experiment_name = 'mfnn_ml-1m_e{}_tt-0.2_task-{}'
 
     config = {}
     config['nb_epochs'] = 20
-    config['init_params_scale'] = 0.001
     config['ratings_path'] = 'data/splits/ml-1m/ratings.csv'
     config['sparse_item'] = True
     config['train_test_split'] = 0.2
@@ -71,10 +69,10 @@ if __name__ == '__main__':
     if config['adagrad']:
         config['ada_eps'] = 1e-6
 
-    config['model_save_dir'] = 'models/mpcf-si'
-    config['metrics_save_dir'] = 'metrics/mpcf-si'
+    config['model_save_dir'] = 'models/mfnn'
+    config['metrics_save_dir'] = 'metrics/mfnn'
 
-    config['si_model'] = True
+    config['user_pref_movie_d2v'] = True
 
     config['run_eval'] = True
     config['precision_recall_at_n'] = 20
@@ -106,4 +104,4 @@ if __name__ == '__main__':
 
         all_configs.append(curr_config)
 
-    easy_parallize(local_train_mpcf, all_configs, p=cores)
+    easy_parallize(local_train_mfnn, all_configs, p=cores)
