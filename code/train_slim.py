@@ -50,15 +50,15 @@ if __name__ == "__main__":
 
     config['verbose'] = 1
 
-    config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
+    config['ratings_path'] = 'data/splits/ml-1m/ratings.csv'
 
     config['sparse_item'] = True
-    config['train_test_split'] = 0.7
-    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-train.csv'
-    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
+    config['train_test_split'] = 0.2
+    config['train_path'] = 'data/splits/ml-1m/sparse-item/0.2-train.csv'
+    config['test_path'] = 'data/splits/ml-1m/sparse-item/0.2-test.csv'
     config['test'] = True
 
-    config['val'] = True
+    config['val'] = False
     if config['val']:
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         config['binarize_pos'] = 1
         config['binarize_neg'] = 0
 
-    config['experiment_name'] = 'slim_e5_tt-0.7'
+    config['experiment_name'] = 'slim_ml-1m_e3_tt-0.2'
 
     config['nb_epochs'] = 5
 
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         config['run_movie_metrics'] = False
 
         config['eval_in_parallel'] = True
-        config['pool_size'] = 2
+        config['pool_size'] = 4
 
         config['metrics_save_dir'] = 'metrics/slim'
 

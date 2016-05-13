@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=mpcf_si
 #SBATCH -N 1
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=24
 #SBATCH --partition=kraken_slow
 #SBATCH --export=ALL
 #SBATCH -o gridsearch_mpcf_si.out

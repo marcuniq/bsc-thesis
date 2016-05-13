@@ -14,7 +14,7 @@ def local_train_slim(args):
     train_eval_save(config, train_slim)
 
     if q is not None:
-        q.put(q)
+        q.put(1)
 
 if __name__ == '__main__':
 
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     os.chdir(dname)
 
     grid_search = False
-    nb_random_samples = 100
+    nb_random_samples = 24
     cores = multiprocessing.cpu_count()
 
     params = {
@@ -41,14 +41,16 @@ if __name__ == '__main__':
     if not grid_search and nb_random_samples < len(param_comb): # random search
         param_comb = random.sample(param_comb, nb_random_samples)
 
+    experiment_name = 'slim_ml-1m_e{}_tt-0.2_task-{}'
+
     config = {}
-    config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
+    config['ratings_path'] = 'data/splits/ml-1m/ratings.csv'
     config['sparse_item'] = True
-    config['train_test_split'] = 0.7
-    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-train.csv'
-    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
+    config['train_test_split'] = 0.2
+    config['train_path'] = 'data/splits/ml-1m/sparse-item/0.2-train.csv'
+    config['test_path'] = 'data/splits/ml-1m/sparse-item/0.2-test.csv'
     config['test'] = True
-    config['val'] = True
+    config['val'] = False
     if config['val']:
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
@@ -63,7 +65,6 @@ if __name__ == '__main__':
     config['top_n_predictions'] = 100
     config['run_movie_metrics'] = False
     config['eval_in_parallel'] = False
-    config['pool_size'] = 2
 
     all_configs = []
     for i, p in enumerate(param_comb):
@@ -77,7 +78,7 @@ if __name__ == '__main__':
             curr_config['binarize_pos'] = 1
             curr_config['binarize_neg'] = 0
 
-        curr_config['experiment_name'] = 'slim_ml-100k_e{}_tt-0.7_task-{}'.format(curr_config['nb_epochs'], i)
+        curr_config['experiment_name'] = experiment_name.format(curr_config['nb_epochs'], i)
 
         all_configs.append(curr_config)
 

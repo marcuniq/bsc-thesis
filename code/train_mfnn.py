@@ -7,11 +7,11 @@ from train_eval_save import train_eval_save
 from utils import binarize_ratings
 from user_pref_model import UserPrefModel
 from calc_metrics import run_eval
-from mf_nn import MFNNModel
+from mfnn import MFNNModel
 from zero_sampler import ZeroSampler
 
 
-def train_mf_nn(config):
+def train_mfnn(config):
     ratings = pd.read_csv(config['ratings_path'])
     train = pd.read_csv(config['train_path'])
     test = pd.read_csv(config['test_path'])
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         config['binarize_pos'] = 1
         config['binarize_neg'] = 0
 
-    config['experiment_name'] = 'mf-nn_ml-100k_e20_tt-0.7'
+    config['experiment_name'] = 'mfnn_ml-100k_e20_tt-0.7'
 
     config['use_avg_rating'] = True
 
@@ -119,4 +119,4 @@ if __name__ == "__main__":
 
         config['metrics_save_dir'] = 'metrics/mfnn'
 
-    train_eval_save(config, train_mf_nn)
+    train_eval_save(config, train_mfnn)

@@ -74,15 +74,15 @@ if __name__ == "__main__":
 
     config['nb_epochs'] = 20
 
-    config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
+    config['ratings_path'] = 'data/splits/ml-1m/ratings.csv'
 
     config['sparse_item'] = True
-    config['train_test_split'] = 0.7
-    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-train.csv'
-    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
+    config['train_test_split'] = 0.2
+    config['train_path'] = 'data/splits/ml-1m/sparse-item/0.2-train.csv'
+    config['test_path'] = 'data/splits/ml-1m/sparse-item/0.2-test.csv'
     config['test'] = True
 
-    config['val'] = True
+    config['val'] = False
     if config['val']:
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     config['zero_sample_factor'] = 3
 
-    config['binarize'] = False
+    config['binarize'] = True
     if config['binarize']:
         config['binarize_threshold'] = 1
         config['binarize_pos'] = 1
@@ -99,9 +99,9 @@ if __name__ == "__main__":
 
     config['use_avg_rating'] = True
 
-    config['experiment_name'] = 'si_ml-100k_e20_tt-0.7_best-param_no-binarize'
+    config['experiment_name'] = 'no-si_ml-1m_e20_tt-0.2_test-run'
 
-    config['si_model'] = True
+    config['si_model'] = False
     if config['si_model']:
         config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
         d2v_model = Doc2Vec.load(config['d2v_model'])

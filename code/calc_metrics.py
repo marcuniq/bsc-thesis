@@ -262,18 +262,20 @@ def calc_movie_metrics(args):
 def run_user_metrics(model, train, test, user_ids, movie_ids, config, verbose=0):
     if verbose:
         print "Calculate user metrics..."
-    user_params = zip(user_ids,
-                      itertools.repeat(model),
-                      itertools.repeat(train),
-                      itertools.repeat(test),
-                      itertools.repeat(movie_ids),
-                      itertools.repeat(config))
 
     if 'eval_in_parallel' in config and config['eval_in_parallel']:
         if 'pool_size' in config:
             pool_size = config['pool_size']
         else:
             pool_size = multiprocessing.cpu_count()
+
+        user_params = zip(user_ids,
+                          itertools.repeat(model),
+                          itertools.repeat(train),
+                          itertools.repeat(test),
+                          itertools.repeat(movie_ids),
+                          itertools.repeat(config))
+
         result = easy_parallize(calc_user_metrics, user_params, p=pool_size)
     else:
         result = []
@@ -291,19 +293,21 @@ def run_user_metrics(model, train, test, user_ids, movie_ids, config, verbose=0)
 def run_movie_metrics(model, train, test, user_ids, movie_ids, top_n_predictions, config, verbose=0):
     if verbose:
         print "Calculate movie metrics..."
-    movie_params = zip(movie_ids,
-                       itertools.repeat(model),
-                       itertools.repeat(train),
-                       itertools.repeat(test),
-                       itertools.repeat(user_ids),
-                       itertools.repeat(top_n_predictions),
-                       itertools.repeat(config))
 
     if 'eval_in_parallel' in config and config['eval_in_parallel']:
         if 'pool_size' in config:
             pool_size = config['pool_size']
         else:
             pool_size = multiprocessing.cpu_count()
+
+        movie_params = zip(movie_ids,
+                           itertools.repeat(model),
+                           itertools.repeat(train),
+                           itertools.repeat(test),
+                           itertools.repeat(user_ids),
+                           itertools.repeat(top_n_predictions),
+                           itertools.repeat(config))
+
         result = easy_parallize(calc_movie_metrics, movie_params, p=pool_size)
     else:
         result = []
@@ -334,7 +338,7 @@ def run_eval(model, train, test, ratings, config):
 if __name__ == '__main__':
     from mpcf import MPCFModel
     from slim import SLIMModel
-    from mf_nn import MFNNModel
+    from mfnn import MFNNModel
 
     model = MPCFModel()
     model.load('mpcf-models/2016-05-05_13.00.42_no-si_ml-100k_e10_tt-0.7_baseline.h5')
