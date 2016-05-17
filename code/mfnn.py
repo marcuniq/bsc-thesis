@@ -77,7 +77,12 @@ class MFNNModel(BaseRecommender):
         qi = np.reshape(self.Q[i,:], (1, -1))
         pu = np.reshape(self.P[u,:], (1, -1))
         movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
-        r_predict = self.avg_train_rating + self.b_i[i] + np.dot(self.P[u,:], self.Q[i,:].T) + self.user_pref_model.predict(qi, pu, movie_d2v)
+        oh_movie_id = np.zeros((1, len(self.movies)), dtype=np.int8)  # one hot encoding of movie_id
+        oh_movie_id[0, i] = 1
+        oh_user_id = np.zeros((1, len(self.users)), dtype=np.int8)  # one hot encoding of user_id
+        oh_user_id[0, u] = 1
+        r_predict = self.avg_train_rating + self.b_i[i] + np.dot(self.P[u,:], self.Q[i,:].T) + \
+                    self.user_pref_model.predict(oh_movie_id, oh_user_id, qi, pu, movie_d2v)
         return r_predict
 
     def fit(self, train, val=None, test=None, zero_sampler=None, verbose=1):
@@ -154,7 +159,18 @@ class MFNNModel(BaseRecommender):
                 pu_reshaped = np.reshape(P_u, (1, -1))
                 movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
 
-                rating_nn, loss, nn_dQ_i, nn_dP_u = self.user_pref_model.gradient_step(qi_reshaped, pu_reshaped, movie_d2v, rating_nn_target, user_pref_lr)
+                oh_movie_id = np.zeros((1, len(self.movies)), dtype=np.int8) # one hot encoding of movie_id
+                oh_movie_id[0, i] = 1
+                oh_user_id = np.zeros((1, len(self.users)), dtype=np.int8) # one hot encoding of user_id
+                oh_user_id[0, u] = 1
+
+                rating_nn, loss, nn_dQ_i, nn_dP_u = self.user_pref_model.gradient_step(oh_movie_id,
+                                                                                       oh_user_id,
+                                                                                       qi_reshaped,
+                                                                                       pu_reshaped,
+                                                                                       movie_d2v,
+                                                                                       rating_nn_target,
+                                                                                       user_pref_lr)
                 feature_losses.append(float(loss))
 
                 rating_predict = rating_mf + float(rating_nn)

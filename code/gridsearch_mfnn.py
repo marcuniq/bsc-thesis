@@ -72,7 +72,9 @@ if __name__ == '__main__':
     config['model_save_dir'] = 'models/mfnn'
     config['metrics_save_dir'] = 'metrics/mfnn'
 
-    config['user_pref_movie_d2v'] = True
+    config['user_pref_input_user_id'] = True
+    config['user_pref_input_movie_id'] = True
+    config['user_pref_input_movie_d2v'] = True
 
     config['run_eval'] = True
     config['precision_recall_at_n'] = 20

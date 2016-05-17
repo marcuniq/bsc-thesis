@@ -13,6 +13,10 @@ from zero_sampler import ZeroSampler
 
 def train_mfnn(config):
     ratings = pd.read_csv(config['ratings_path'])
+
+    config['nb_users'] = len(ratings['user_id'].unique())
+    config['nb_movies'] = len(ratings['movie_id'].unique())
+
     train = pd.read_csv(config['train_path'])
     test = pd.read_csv(config['test_path'])
     val = None
@@ -104,8 +108,11 @@ if __name__ == "__main__":
     config['user_pref_lr_decay'] = 5e-4
     config['user_pref_lambda_grad'] = 0.003
     config['user_pref_reg_lambda'] = 0.0001
-    config['user_pref_hidden_dim'] = [4, 1]
-    config['user_pref_movie_d2v'] = True
+    config['user_pref_hidden_dim'] = [20, 10, 1]
+
+    config['user_pref_input_user_id'] = False
+    config['user_pref_input_movie_id'] = False
+    config['user_pref_input_movie_d2v'] = True
 
     config['run_eval'] = True
     if config['run_eval']:
