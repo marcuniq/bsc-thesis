@@ -1,12 +1,12 @@
-import numpy as np
-import pandas as pd
-import itertools
 import datetime
-import time
-import progressbar
+import itertools
 import multiprocessing
 
+import numpy as np
+import pandas as pd
+
 from utils import easy_parallize
+
 
 def add_rank(df):
     df['rank'] = np.mean(df.index)
@@ -336,16 +336,15 @@ def run_eval(model, train, test, ratings, config):
 
 
 if __name__ == '__main__':
-    from mpcf import MPCFModel
-    from slim import SLIMModel
-    from mfnn import MFNNModel
+    import os
+    from code.bprmf import BPRMFModel
 
-    model = MPCFModel()
-    model.load('mpcf-models/2016-05-05_13.00.42_no-si_ml-100k_e10_tt-0.7_baseline.h5')
+    model = BPRMFModel()
+    model.load('models/bprmf/2016-05-20_15.53.14_bprmf_ml-100k_e1_test.h5')
 
     ratings = pd.read_csv('data/splits/ml-100k/ratings.csv')
-    train = pd.read_csv('data/splits/ml-100k/sparse-item/0.7-0.8-train.csv')
-    test = pd.read_csv('data/splits/ml-100k/sparse-item/0.7-0.8-val.csv')
+    train = pd.read_csv('data/splits/ml-100k/no-sparse-item/0.2-train.csv')
+    test = pd.read_csv('data/splits/ml-100k/no-sparse-item/0.2-test.csv')
 
     movie_ids = ratings['movie_id'].unique()
     user_ids = ratings['user_id'].unique()
@@ -353,16 +352,27 @@ if __name__ == '__main__':
     config = {}
     config['precision_recall_at_n'] = 20
     config['verbose'] = 1
-    config['experiment_name'] = 'no-si_ml-100k_e10_tt-0.7_baseline'
+    config['experiment_name'] = 'bprmf_ml-100k_e1_test'
     config['hit_threshold'] = 4
     config['top_n_predictions'] = 100
-    config['debug_eval'] = False
     config['run_movie_metrics'] = False
 
-    run_eval(model, train, test, ratings, config)
+    config['eval_in_parallel'] = True
+    config['pool_size'] = 8
 
-    #top_n_predictions = pd.read_csv('metrics/2016-05-05_11.37.28_slim_e5_tt-0.7_top-100-predictions.csv')
-    #movie_metrics = run_movie_metrics(model, train, test, user_ids, movie_ids, top_n_predictions, config)
+    config['metrics_save_dir'] = 'metrics/bprmf'
 
-    #dt = datetime.datetime.now()
-    #movie_metrics.to_csv('metrics/{:%Y-%m-%d_%H.%M.%S}_{}_movie-metrics.csv'.format(dt, config['experiment_name']), index=False)
+    user_metrics, top_n_predictions, movie_metrics = run_eval(model, train, test, ratings, config)
+    dt = datetime.datetime.now()
+    user_metrics.to_csv(
+        os.path.join(config['metrics_save_dir'],
+                     '{:%Y-%m-%d_%H.%M.%S}_{}_user-metrics.csv'.format(dt, config['experiment_name'])),
+        index=False)
+
+    top_n_predictions.to_csv(
+        os.path.join(config['metrics_save_dir'],
+                     '{:%Y-%m-%d_%H.%M.%S}_{}_top-{}-predictions.csv'.format(dt,
+                                                                             config['experiment_name'],
+                                                                             config['top_n_predictions'])),
+        index=False)
+

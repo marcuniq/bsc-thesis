@@ -43,8 +43,8 @@ def movie_to_imdb(ratings):
     return result
 
 
-def binarize_ratings(df, pos=1, neg=0, threshold=1):
-    copy = df.copy()
+def binarize_ratings(df, pos=1, neg=0, threshold=1, copy=False):
+    copy = df.copy() if copy else df
     liked = copy['rating'] >= threshold
     disliked = copy['rating'] < threshold
     copy.loc[liked, 'rating'] = pos
