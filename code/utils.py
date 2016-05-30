@@ -61,13 +61,13 @@ def merge_dicts(*dict_args):
     return result
 
 
-def easy_parallize(f, params, p=8):
+def easy_parallize(f, params, p=8, nb_jobs=None):
     from multiprocessing import Pool, Manager
     pool = Pool(processes=p)
     m = Manager()
     q = m.Queue()
 
-    nb_jobs = len(params)
+    nb_jobs = len(params) if nb_jobs is None else nb_jobs
     bar = progressbar.ProgressBar(max_value=nb_jobs)
 
     args = [(i, q) for i in params]

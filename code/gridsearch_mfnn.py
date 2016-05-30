@@ -38,10 +38,10 @@ if __name__ == '__main__':
         'zero_sample_factor': [3, 5],
         'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
                       ],
-        'user_pref_lr': [0.0003, 0.001, 0.003, 0.01],
+        'user_pref_lr': [0.003, 0.01, 0.03],
         'user_pref_lr_decay': [5e-4, 2e-2],
-        'user_pref_lambda_grad': [0.0003, 0.001, 0.003],
-        'user_pref_reg_lambda': [0.001, 0.003],
+        'user_pref_lambda_grad': [0.01, 0.03, 0.1, 0.3],
+        'user_pref_reg_lambda': [0.0003, 0.001, 0.003],
         'user_pref_hidden_dim': [[4, 1], [10, 1], [100, 1]]
     }
 
@@ -50,15 +50,15 @@ if __name__ == '__main__':
     if not grid_search and nb_random_samples < len(param_comb): # random search
         param_comb = random.sample(param_comb, nb_random_samples)
 
-    experiment_name = 'mfnn_ml-1m_e{}_tt-0.2_task-{}'
+    experiment_name = 'mfnn_ml-100k_e{}_tt-0.7_task-{}'
 
     config = {}
     config['nb_epochs'] = 20
-    config['ratings_path'] = 'data/splits/ml-1m/ratings.csv'
+    config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
     config['sparse_item'] = True
-    config['train_test_split'] = 0.2
-    config['train_path'] = 'data/splits/ml-1m/sparse-item/0.2-train.csv'
-    config['test_path'] = 'data/splits/ml-1m/sparse-item/0.2-test.csv'
+    config['train_test_split'] = 0.7
+    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-train.csv'
+    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
     config['test'] = True
     config['val'] = False
     if config['val']:

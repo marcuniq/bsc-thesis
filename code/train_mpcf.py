@@ -3,7 +3,7 @@ import os
 import pandas as pd
 from gensim.models.doc2vec import Doc2Vec
 
-from si_model import SideInfoModel
+from si_model import ATSideInfoModel, NNSideInfoModel
 from mpcf import MPCFModel
 from train_eval_save import train_eval_save
 from utils import binarize_ratings
@@ -36,7 +36,7 @@ def train_mpcf(config):
     if config['si_model']:
         d2v_model = Doc2Vec.load(config['d2v_model'])
         config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
-        si_model = SideInfoModel(config['si_nn'], config['si_reg_lambda'])
+        si_model = NNSideInfoModel(config['si_nn'], config['si_reg_lambda'])
 
     if config['verbose'] > 0:
         print "experiment: ", config['experiment_name']
