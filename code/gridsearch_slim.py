@@ -32,8 +32,7 @@ if __name__ == '__main__':
         'ignore_negative_weights': [True, False],
         'l1_reg': [0.0001, 0.0003, 0.001, 0.003, 0.01],
         'l2_reg': [0.00003, 0.0001, 0.0003, 0.001, 0.003],
-        'nb_epochs': [3, 5, 8, 10],
-        'binarize': [True, False]
+        'nb_epochs': [3, 5, 8, 10]
     }
 
     param_comb = list(ParameterGrid(params))
@@ -41,19 +40,24 @@ if __name__ == '__main__':
     if not grid_search and nb_random_samples < len(param_comb): # random search
         param_comb = random.sample(param_comb, nb_random_samples)
 
-    experiment_name = 'slim_ml-1m_e{}_tt-0.2_task-{}'
+    experiment_name = 'slim_ml-1m_e{}_tt-0.7_task-{}'
 
     config = {}
     config['ratings_path'] = 'data/splits/ml-1m/ratings.csv'
     config['sparse_item'] = True
-    config['train_test_split'] = 0.2
-    config['train_path'] = 'data/splits/ml-1m/sparse-item/0.2-train.csv'
-    config['test_path'] = 'data/splits/ml-1m/sparse-item/0.2-test.csv'
+    config['train_test_split'] = 0.7
+    config['train_path'] = 'data/splits/ml-1m/sparse-item/0.7-train.csv'
+    config['test_path'] = 'data/splits/ml-1m/sparse-item/0.7-test.csv'
     config['test'] = True
     config['val'] = False
     if config['val']:
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
+
+    config['binarize'] = True
+    config['binarize_threshold'] = 1
+    config['binarize_pos'] = 1
+    config['binarize_neg'] = 0
 
     config['model_save_dir'] = 'models/slim'
     config['metrics_save_dir'] = 'metrics/slim'
