@@ -24,9 +24,9 @@ if __name__ == '__main__':
     dname = os.path.dirname(abspath)
     os.chdir(dname)
 
+    train_in_parallel = True
     grid_search = False
-    nb_random_samples = 24
-    cores = multiprocessing.cpu_count()
+    nb_random_samples = 2
 
     params = {
         'lr': [0.003, 0.01, 0.03],
@@ -51,16 +51,16 @@ if __name__ == '__main__':
     if not grid_search and nb_random_samples < len(param_comb): # random search
         param_comb = random.sample(param_comb, nb_random_samples)
 
-    experiment_name = 'si_ml-100k_e{}_tt-0.7_task-{}'
+    experiment_name = 'si_ml-1m_e{}_tt-0.7_task-{}'
 
     config = {}
     config['nb_epochs'] = 20
     config['init_params_scale'] = 0.001
-    config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
+    config['ratings_path'] = 'data/splits/ml-1m/ratings.csv'
     config['sparse_item'] = True
     config['train_test_split'] = 0.7
-    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-train.csv'
-    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
+    config['train_path'] = 'data/splits/ml-1m/sparse-item/0.7-train.csv'
+    config['test_path'] = 'data/splits/ml-1m/sparse-item/0.7-test.csv'
     config['test'] = True
     config['val'] = False
     if config['val']:
@@ -106,4 +106,11 @@ if __name__ == '__main__':
 
         all_configs.append(curr_config)
 
-    easy_parallize(local_train_mpcf, all_configs, p=cores)
+    if train_in_parallel:
+        nb_concurrent_jobs = 2  # multiprocessing.cpu_count()
+        easy_parallize(local_train_mpcf, all_configs, p=nb_concurrent_jobs)
+    else:
+        for c in all_configs:
+            c['eval_in_parallel'] = True
+            c['pool_size'] = multiprocessing.cpu_count()
+            train_eval_save(c, train_mpcf)
