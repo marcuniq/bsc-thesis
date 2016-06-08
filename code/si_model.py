@@ -33,23 +33,27 @@ class NNSideInfoModel(object):
 class ATSideInfoModel(object):
     """Affine Transformation"""
     def __init__(self, dim, reg_lambda):
-        Qi = T.matrix('Qi', dtype=theano.config.floatX)
-        f = T.vector('f', dtype=theano.config.floatX)
+        nb_latent_f = dim[0]
+        nb_d2v_features = dim[-1]
 
-        W1 = theano.shared(np.random.randn(dim[0], dim[1]) / np.sqrt(dim[0]))
-        b1 = theano.shared(np.zeros(dim[1]))
-        f_predict = Qi.dot(W1) + b1
+        self.G = np.random.uniform(low=-0.001, high=0.001, size=(nb_d2v_features, nb_latent_f + 1))  # side info weight matrix
+        self.ada_cache_G = np.zeros_like(self.G)
+        self.reg_lambda = reg_lambda
 
-        loss = T.sqr(f - f_predict).sum()
-        loss += reg_lambda * (T.sum(T.sqr(W1)))
+    def gradient_step(self, Qi, feature, lr):
+        bias = np.array([1]).reshape((-1, 1))
+        biased_qi = np.hstack([bias, Qi])
 
-        dQi = theano.grad(loss, Qi)
-        dW1 = theano.grad(loss, W1)
-        db1 = theano.grad(loss, b1)
+        feature_predict = np.dot(self.G, biased_qi.T).reshape((-1,))  # vector
+        feature_error = feature - feature_predict
+        loss = np.sum(np.square(feature_error))
 
-        lr = T.scalar('lr', dtype=theano.config.floatX)
+        deltaG = np.dot(feature_error.reshape((-1, 1)), biased_qi.reshape((1, -1))) - self.reg_lambda * self.G
+        deltaQ_i = np.dot(self.G[:, 1:].T, feature_error)  # without bias
 
-        self.gradient_step = theano.function([Qi, f, lr],
-                                             outputs=[loss, dQi],
-                                             updates=((W1, W1 - lr * dW1), (b1, b1 - lr * db1)),
-                                             allow_input_downcast=True)
+        self.ada_cache_G += deltaG ** 2
+
+        # update parameters
+        self.G += lr * deltaG / (np.sqrt(self.ada_cache_G) + 1e-6)
+
+        return loss, deltaQ_i
