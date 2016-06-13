@@ -23,19 +23,19 @@ if __name__ == '__main__':
     dname = os.path.dirname(abspath)
     os.chdir(dname)
 
+    train_in_parallel = True
     grid_search = False
-    nb_random_samples = 24
-    cores = multiprocessing.cpu_count()
+    nb_random_samples = 10
 
     params = {
-        'lr': [0.003, 0.01, 0.03],
+        'lr': [0.001, 0.003, 0.01, 0.03],
         'lr_decay': [5e-4, 2e-2],
-        'reg_lambda': [0.001, 0.003, 0.01],
-        'nb_latent_f': [64, 96, 128],
-        'nb_user_pref': [2, 4, 8],
-        'binarize': [True, False],
-        'use_avg_rating': [True, False],
-        'zero_sample_factor': [3, 5],
+        'reg_lambda': [0.003, 0.01, 0.03],
+        'nb_latent_f': [128, 192],
+        'nb_user_pref': [1, 2],
+        'binarize': [False],
+        'use_avg_rating': [True],
+        'zero_sample_factor': [3],
     }
 
     param_comb = list(ParameterGrid(params))
@@ -43,16 +43,16 @@ if __name__ == '__main__':
     if not grid_search: # random search
         param_comb = random.sample(param_comb, nb_random_samples)
 
-    experiment_name = 'no-si_ml-1m_e{}_tt-0.2_task-{}'
+    experiment_name = 'no-si_ml-100k_e{}_tt-0.7_task-{}'
 
     config = {}
     config['init_params_scale'] = 0.001
     config['nb_epochs'] = 20
-    config['ratings_path'] = 'data/splits/ml-1m/ratings.csv'
+    config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
     config['sparse_item'] = True
-    config['train_test_split'] = 0.2
-    config['train_path'] = 'data/splits/ml-1m/sparse-item/0.2-train.csv'
-    config['test_path'] = 'data/splits/ml-1m/sparse-item/0.2-test.csv'
+    config['train_test_split'] = 0.7
+    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-train.csv'
+    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
     config['test'] = True
     config['val'] = False
     if config['val']:
@@ -70,10 +70,10 @@ if __name__ == '__main__':
 
     config['run_eval'] = True
     config['precision_recall_at_n'] = 20
-    config['verbose'] = 0
+    config['verbose'] = 1
     config['hit_threshold'] = 4
     config['top_n_predictions'] = 100
-    config['run_movie_metrics'] = False
+    config['run_movie_metrics'] = True
     config['eval_in_parallel'] = False
 
     all_configs = []
@@ -89,4 +89,11 @@ if __name__ == '__main__':
 
         all_configs.append(curr_config)
 
-    easy_parallize(local_train_mpcf, all_configs, p=cores)
+    if train_in_parallel:
+        nb_concurrent_jobs = 10  # multiprocessing.cpu_count()
+        easy_parallize(local_train_mpcf, all_configs, p=nb_concurrent_jobs)
+    else:
+        for c in all_configs:
+            c['eval_in_parallel'] = True
+            c['pool_size'] = multiprocessing.cpu_count()
+            train_eval_save(c, train_mpcf)

@@ -124,7 +124,7 @@ def calc_user_metrics(args):
 
     df_movies_in_train = train[train['user_id'] == user_id]
     movie_ids_in_train = df_movies_in_train['movie_id'].unique()
-    nb_train_movies = movie_ids_in_train.size
+    nb_train_ratings = movie_ids_in_train.size
 
     df_movies_in_test = test[test['user_id'] == user_id]
     df_movies_in_test = df_movies_in_test.sort_values('rating', ascending=False)
@@ -132,7 +132,7 @@ def calc_user_metrics(args):
     df_movies_in_test = df_movies_in_test.groupby('rating').apply(lambda df: add_rank(df))
 
     movie_ids_in_test = df_movies_in_test['movie_id'].unique()
-    nb_test_movies = movie_ids_in_test.size
+    nb_test_ratings = movie_ids_in_test.size
 
     movie_ids_of_hits = df_movies_in_test[df_movies_in_test['rating'] >= config['hit_threshold']]['movie_id'].unique()
     nb_hits = movie_ids_of_hits.size
@@ -157,7 +157,7 @@ def calc_user_metrics(args):
     # calc actual metrics
     auc, avg_precision, precision, recall, f1, reciprocal_rank, fcp, spearman_rank_corr = 0, 0, 0, 0, 0, 0, 0, 0
 
-    auc = calc_auc(nb_movies_not_in_train, nb_test_movies, rankings)
+    auc = calc_auc(nb_movies_not_in_train, nb_test_ratings, rankings)
     precision_recall_at_n = config['precision_recall_at_n']
     if nb_hits > 0:
         df_hits_in_prediction = df_predictions[df_predictions['movie_id'].isin(movie_ids_of_hits)]
@@ -171,11 +171,11 @@ def calc_user_metrics(args):
     pred_rank_of_test = get_predicted_ranks(df_test_only_predictions, movie_ids_in_test)
     perfect_rank_of_test = get_perfect_ranks(df_movies_in_test, movie_ids_in_test)
 
-    if nb_test_movies > 1:
+    if nb_test_ratings > 1:
         fcp = calc_fcp(pred_rank_of_test, perfect_rank_of_test, movie_ids_in_test)
     spearman_rank_corr = calc_spearman_rank_corr(pred_rank_of_test, perfect_rank_of_test, movie_ids_in_test)
 
-    metrics = {'user_id': user_id, 'nb_train_movies': nb_train_movies, 'nb_test_movies': nb_test_movies,
+    metrics = {'user_id': user_id, 'nb_train_ratings': nb_train_ratings, 'nb_test_ratings': nb_test_ratings,
                'nb_movies_not_in_train': nb_movies_not_in_train, 'rankings': [list(rankings)],
                'auc': auc, 'avg_precision': avg_precision, 'f1': f1,
                'recall_at_{}'.format(precision_recall_at_n): recall,
