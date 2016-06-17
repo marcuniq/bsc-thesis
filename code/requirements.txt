@@ -6,3 +6,4 @@ progressbar2
 deepdish
 scikit-learn
 multiprocessing
+mrec

@@ -1,19 +1,14 @@
-import pandas as pd
 import numpy as np
 from mrec.sparse import fast_sparse_matrix
 from scipy.sparse import csr_matrix
 from sklearn.linear_model import SGDRegressor
-import datetime
-import json
 
-from utils import binarize_ratings
-from zero_sampler import ZeroSampler
 from base_recommender import BaseRecommender
 
 
 class SLIMModel(BaseRecommender):
-    def __init__(self, ratings=None, config=None):
-        BaseRecommender.__init__(self, ratings, config)
+    def __init__(self, users=None, items=None, config=None):
+        BaseRecommender.__init__(self, users, items, config)
 
         self.sparse_matrix = None
         self.similarity_matrix = None
@@ -34,7 +29,7 @@ class SLIMModel(BaseRecommender):
             return df
 
         def replace_movie_id(df):
-            df['movie_id'] = self.movies[df['movie_id'].unique()[0]]
+            df['movie_id'] = self.items[df['movie_id'].unique()[0]]
             return df
 
         copy = copy.groupby('user_id').apply(lambda df: replace_user_id(df))
@@ -43,7 +38,7 @@ class SLIMModel(BaseRecommender):
         row = copy['user_id'].values
         col = copy['movie_id'].values
         data = copy['rating'].values
-        shape = (len(self.users),len(self.movies))
+        shape = (len(self.users),len(self.items))
         return csr_matrix((data,(row,col)), shape=shape)
 
     def compute_similarities(self, dataset, j):
@@ -83,9 +78,9 @@ class SLIMModel(BaseRecommender):
         self.similarity_matrix = params['similarity_matrix']
         self.intercepts = params['intercepts']
 
-    def predict(self, user_id, movie_id):
+    def predict(self, user_id, item_id):
         u = self.users[user_id]
-        i = self.movies[movie_id]
+        i = self.items[item_id]
         r_predict = (self.similarity_matrix[i] * self.sparse_matrix[u].T).toarray().flatten()[0]
         if 'fit_intercept' in self.config and self.config['fit_intercept']:
             r_predict += self.intercepts[i]
@@ -93,8 +88,8 @@ class SLIMModel(BaseRecommender):
 
     def fit(self, train):
         """ train is a pandas DataFrame, which has columns:
-                'movie_id'
                 'user_id'
+                'movie_id'
                 'rating'
         """
         self.sparse_matrix = self._df_to_sparse_matrix(train)

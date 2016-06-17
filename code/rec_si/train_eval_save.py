@@ -3,7 +3,7 @@ import json
 import os
 import pandas as pd
 
-from calc_metrics import run_eval
+from metrics import run_eval
 
 
 def train_eval_save(config, train_func):

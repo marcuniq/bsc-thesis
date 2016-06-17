@@ -5,7 +5,7 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 
-from utils import easy_parallize
+from .utils import easy_parallize, create_lookup_tables
 
 
 def add_rank(df):
@@ -337,14 +337,16 @@ def run_eval(model, train, test, ratings, config):
 
 if __name__ == '__main__':
     import os
-    from code.bprmf import BPRMFModel
-
-    model = BPRMFModel()
-    model.load('models/bprmf/2016-05-20_15.53.14_bprmf_ml-100k_e1_test.h5')
+    from code.rec_si.recommender.mpcf import MPCFModel
 
     ratings = pd.read_csv('data/splits/ml-100k/ratings.csv')
-    train = pd.read_csv('data/splits/ml-100k/no-sparse-item/0.2-train.csv')
-    test = pd.read_csv('data/splits/ml-100k/no-sparse-item/0.2-test.csv')
+    train = pd.read_csv('data/splits/ml-100k/sparse-item/0.7-train.csv')
+    test = pd.read_csv('data/splits/ml-100k/sparse-item/0.7-test.csv')
+
+    users, items = create_lookup_tables(ratings)
+
+    model = MPCFModel(users, items)
+    model.load('models/mpcf-si/2016-06-14_16.22.04_si_ml-100k_e20_tt-0.7_save-nn-params.h5')
 
     movie_ids = ratings['movie_id'].unique()
     user_ids = ratings['user_id'].unique()
@@ -352,15 +354,15 @@ if __name__ == '__main__':
     config = {}
     config['precision_recall_at_n'] = 20
     config['verbose'] = 1
-    config['experiment_name'] = 'bprmf_ml-100k_e1_test'
+    config['experiment_name'] = 'si_ml-100k_e20_tt-0.7_save-nn-params'
     config['hit_threshold'] = 4
     config['top_n_predictions'] = 100
-    config['run_movie_metrics'] = False
+    config['run_movie_metrics'] = True
 
     config['eval_in_parallel'] = True
     config['pool_size'] = 8
 
-    config['metrics_save_dir'] = 'metrics/bprmf'
+    config['metrics_save_dir'] = 'metrics/mpcf-si'
 
     user_metrics, top_n_predictions, movie_metrics = run_eval(model, train, test, ratings, config)
     dt = datetime.datetime.now()

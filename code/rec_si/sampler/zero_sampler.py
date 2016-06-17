@@ -5,26 +5,25 @@ import numpy as np
 import pandas as pd
 import progressbar
 
-import utils
-
 
 class ZeroSampler(object):
-    def __init__(self, ratings):
+    def __init__(self, ratings, user_key='user_id', item_key='movie_id'):
         self.ratings = ratings
+        self.user_key = user_key
+        self.item_key = item_key
         self.all_comb = None
         self.rated = None
         self.non_rated = None
-        self.movie_to_imdb = utils.movie_to_imdb(ratings)
         self._init()
 
     def _init(self):
-        movie_ids = self.ratings['movie_id'].unique()
-        user_ids = self.ratings['user_id'].unique()
-        self.all_comb = np.fromiter(itertools.product(user_ids, movie_ids), dtype=[('u', np.int), ('m', np.int)])
-        self.rated = np.zeros((len(self.ratings),), dtype=[('u', np.int), ('m', np.int)])
+        item_ids = self.ratings[self.item_key].unique()
+        user_ids = self.ratings[self.user_key].unique()
+        self.all_comb = np.fromiter(itertools.product(user_ids, item_ids), dtype=[('u', np.int), ('i', np.int)])
+        self.rated = np.zeros((len(self.ratings),), dtype=[('u', np.int), ('i', np.int)])
         for i, row in enumerate(self.ratings.itertuples()):
-            user_id, movie_id = row[1], row[2]
-            self.rated[i] = (user_id, movie_id)
+            user_id, item_id = row[1], row[2]
+            self.rated[i] = (user_id, item_id)
 
         self.non_rated = np.setdiff1d(self.all_comb, self.rated, assume_unique=True)
 
@@ -40,9 +39,8 @@ class ZeroSampler(object):
             bar.start()
 
         result = []
-        for i, (user_id, movie_id) in enumerate(samples):
-            imdb_id = self.movie_to_imdb[movie_id]
-            result.append({'user_id': user_id, 'movie_id': movie_id, 'rating': 0, 'timestamp': 0, 'imdb_id': imdb_id})
+        for i, (user_id, item_id) in enumerate(samples):
+            result.append({self.user_key: user_id, self.item_key: item_id, 'rating': 0, 'timestamp':0, 'imdb_id':0})
             if verbose > 0:
                 progress += 1
                 bar.update(progress)
@@ -50,4 +48,4 @@ class ZeroSampler(object):
         if verbose > 0:
             bar.finish()
 
-        return pd.DataFrame(result, columns=['user_id', 'movie_id', 'rating', 'timestamp', 'imdb_id'])
+        return pd.DataFrame(result, columns=[self.user_key, self.item_key, 'rating', 'timestamp', 'imdb_id'])
