@@ -116,7 +116,7 @@ if __name__ == "__main__":
         config['si_item_valid_id'] = 2
         config['si_item_lr'] = 0.01
         config['si_item_lr_decay'] = 0.02
-        config['si_item_l_d_item_f'] = 0.001
+        config['si_item_lambda_d_item_f'] = 0.001
         config['si_item_reg_lambda'] = 0.001
         config['si_item_cosine_lambda'] = 0.1
         config['si_item_nn_hidden'] = []
@@ -129,7 +129,7 @@ if __name__ == "__main__":
         config['si_user_valid_id'] = 1
         config['si_user_lr'] = 0.01
         config['si_user_lr_decay'] = 5e-4
-        config['si_user_l_d_item_f'] = 0.1
+        config['si_user_lambda_d_item_f'] = 0.1
         config['si_user_reg_lambda'] = 0.0001
         config['si_user_cosine_lambda'] = 0.2
         config['si_user_nn_hidden'] = []
