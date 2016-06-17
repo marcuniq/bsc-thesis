@@ -1,13 +1,12 @@
 import multiprocessing
 import os
-
-from gensim.models import Doc2Vec
-from sklearn.grid_search import ParameterGrid
 import random
 
-from train_eval_save import train_eval_save
+from sklearn.grid_search import ParameterGrid
+
+from rec_si.train_eval_save import train_eval_save
+from rec_si.utils import merge_dicts, easy_parallize
 from train_mpcf import train_mpcf
-from utils import merge_dicts, easy_parallize
 
 
 def local_train_mpcf(args):
@@ -24,12 +23,12 @@ if __name__ == '__main__':
     dname = os.path.dirname(abspath)
     os.chdir(dname)
 
-    train_in_parallel = True
+    train_in_parallel = False
     grid_search = False
-    nb_random_samples = 12
+    nb_random_samples = 1
 
     params = {
-        'lr': [0.001, 0.003, 0.01, 0.03],
+        'lr': [0.003, 0.01, 0.03],
         'lr_decay': [5e-4, 2e-2],
         'reg_lambda': [0.003, 0.01, 0.03],
         'nb_latent_f': [128, 192],
@@ -37,13 +36,14 @@ if __name__ == '__main__':
         'binarize': [False],
         'use_avg_rating': [True],
         'zero_sample_factor': [3],
-        'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
+        'si_item_d2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
                       ],
-        'si_lr': [0.001, 0.003, 0.01],
-        'si_lr_decay': [5e-4, 2e-2],
-        'si_lambda_delta_qi': [0.001, 0.01, 0.1],
-        'si_reg_lambda': [0.003, 0.01, 0.03],
-        'si_nn_hidden': [[], [160]]
+        'si_item_lr': [0.001, 0.003, 0.01],
+        'si_item_lr_decay': [5e-4, 2e-2],
+        'si_item_l_d_item_f': [0.001, 0.01, 0.1],
+        'si_item_reg_lambda': [0.003, 0.01, 0.03],
+        'si_item_cosine_lambda': [0.01, 0.1, 1],
+        'si_item_nn_hidden': [[], [160]]
     }
 
     param_comb = list(ParameterGrid(params))
@@ -74,7 +74,12 @@ if __name__ == '__main__':
     config['model_save_dir'] = 'models/mpcf-si'
     config['metrics_save_dir'] = 'metrics/mpcf-si'
 
-    config['si_model'] = True
+    config['si_item_model'] = True
+    config['si_item_valid_id'] = 2
+
+    config['si_user_model'] = False
+    if config['si_user_model']:
+        config['si_user_valid_id'] = ''
 
     config['run_eval'] = True
     config['precision_recall_at_n'] = 20
@@ -94,15 +99,6 @@ if __name__ == '__main__':
             curr_config['binarize_neg'] = 0
 
         curr_config['experiment_name'] = experiment_name.format(curr_config['nb_epochs'], i)
-
-        d2v_model = Doc2Vec.load(curr_config['d2v_model'])
-        curr_config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
-
-        si_nn = list(curr_config['si_nn_hidden'])
-        si_nn.insert(0, curr_config['nb_latent_f'])
-        si_nn.append(curr_config['nb_d2v_features'])
-        curr_config['si_nn'] = si_nn
-        curr_config.pop('si_nn_hidden', None)
 
         all_configs.append(curr_config)
 

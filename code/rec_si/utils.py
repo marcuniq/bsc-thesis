@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import collections
 import unicodedata
 # for timing
 from contextlib import contextmanager
@@ -87,3 +87,61 @@ def easy_parallize(f, params, p=8, nb_jobs=None):
     pool.join()
 
     return results.get()
+
+
+class TransformedDict(collections.MutableMapping):
+    """A dictionary that applies an arbitrary key-altering
+       function before accessing the keys"""
+
+    def __init__(self, *args, **kwargs):
+        self.store = dict()
+        self.update(dict(*args, **kwargs))  # use the free update to set keys
+
+    def __getitem__(self, key):
+        return self.store[self.__keytransform__(key)]
+
+    def __setitem__(self, key, value):
+        self.store[self.__keytransform__(key)] = value
+
+    def __delitem__(self, key):
+        del self.store[self.__keytransform__(key)]
+
+    def __iter__(self):
+        return iter(self.store)
+
+    def __len__(self):
+        return len(self.store)
+
+    def __keytransform__(self, key):
+        return key
+
+
+class MovieIdToDocVec(TransformedDict):
+    """Maps movie id to document vector"""
+    def __init__(self, docvecs, ratings):
+        self.store = docvecs
+        self.movie_to_imdb = movie_to_imdb(ratings)
+
+    def __keytransform__(self, key):
+        return '{}.txt'.format(self.movie_to_imdb[key])
+
+
+class UserIdToDocVec(TransformedDict):
+    """Maps user id to document vector"""
+    def __init__(self, docvecs, ratings):
+        self.store = docvecs
+        self.movie_to_imdb = movie_to_imdb(ratings)
+
+    def __keytransform__(self, key):
+        return '{}.txt'.format(self.movie_to_imdb[key])
+
+
+def create_lookup_tables(ratings, user_key='user_id', item_key='movie_id'):
+    users_unique = ratings[user_key].unique()
+    nb_users = len(users_unique)
+    users = dict(zip(users_unique, range(nb_users)))  # lookup table for user_id to zero indexed number
+
+    movies_unique = ratings[item_key].unique()
+    nb_movies = len(movies_unique)
+    items = dict(zip(movies_unique, range(nb_movies)))  # lookup table for user_id to zero indexed number
+    return users, items

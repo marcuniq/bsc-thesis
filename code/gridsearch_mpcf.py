@@ -1,12 +1,12 @@
 import multiprocessing
 import os
-
-from sklearn.grid_search import ParameterGrid
 import random
 
-from train_eval_save import train_eval_save
+from sklearn.grid_search import ParameterGrid
+
+from rec_si.train_eval_save import train_eval_save
+from rec_si.utils import merge_dicts, easy_parallize
 from train_mpcf import train_mpcf
-from utils import merge_dicts, easy_parallize
 
 
 def local_train_mpcf(args):
@@ -23,9 +23,9 @@ if __name__ == '__main__':
     dname = os.path.dirname(abspath)
     os.chdir(dname)
 
-    train_in_parallel = True
+    train_in_parallel = False
     grid_search = False
-    nb_random_samples = 10
+    nb_random_samples = 1
 
     params = {
         'lr': [0.001, 0.003, 0.01, 0.03],
@@ -46,8 +46,8 @@ if __name__ == '__main__':
     experiment_name = 'no-si_ml-100k_e{}_tt-0.7_task-{}'
 
     config = {}
+    config['nb_epochs'] = 1
     config['init_params_scale'] = 0.001
-    config['nb_epochs'] = 20
     config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
     config['sparse_item'] = True
     config['train_test_split'] = 0.7
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     config['model_save_dir'] = 'models/mpcf'
     config['metrics_save_dir'] = 'metrics/mpcf'
 
-    config['si_model'] = False
+    config['si_item_model'] = False
 
     config['run_eval'] = True
     config['precision_recall_at_n'] = 20

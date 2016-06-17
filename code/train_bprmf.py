@@ -2,10 +2,10 @@ import os
 
 import pandas as pd
 
-from bprmf import BPRMFModel
-from train_eval_save import train_eval_save
-from triplet_sampler import TripletSampler
-from utils import binarize_ratings
+from rec_si.recommender.bprmf import BPRMFModel
+from rec_si.sampler.triplet_sampler import TripletSampler
+from rec_si.train_eval_save import train_eval_save
+from rec_si.utils import binarize_ratings, create_lookup_tables
 
 
 def train_bprmf(config):
@@ -22,7 +22,9 @@ def train_bprmf(config):
         print "experiment: ", config['experiment_name']
         print config
 
-    model = BPRMFModel(ratings, config)
+    users, items = create_lookup_tables(ratings)
+
+    model = BPRMFModel(users, items, config)
     model.fit(train, triplet_sampler)
 
     return model, config, None
@@ -51,7 +53,7 @@ if __name__ == "__main__":
 
     config['init_params_scale'] = 0.001
 
-    config['nb_epochs'] = 20
+    config['nb_epochs'] = 1
 
     config['triplet_sample_factor'] = 5
 
@@ -76,14 +78,14 @@ if __name__ == "__main__":
         config['binarize_pos'] = 1
         config['binarize_neg'] = 0
 
-    config['experiment_name'] = 'bprmf_ml-100k_e20_triplet-sample-5'
+    config['experiment_name'] = 'bprmf_ml-100k_e1_test'
 
     config['run_eval'] = True
     if config['run_eval']:
         config['precision_recall_at_n'] = 20
         config['hit_threshold'] = 4
         config['top_n_predictions'] = 100
-        config['run_movie_metrics'] = False
+        config['run_movie_metrics'] = True
 
         config['eval_in_parallel'] = True
         config['pool_size'] = 4

@@ -1,35 +1,29 @@
-import datetime
-import json
-import sys
-
-import deepdish as dd
 import numpy as np
-import pandas as pd
 import progressbar
 from gensim.models import Doc2Vec
 
-import utils
 from base_recommender import BaseRecommender
 from user_pref_model import UserPrefModel
 
 
 class MFNNModel(BaseRecommender):
 
-    def __init__(self, ratings=None, config=None, user_pref_model=None, d2v_model=None):
-        BaseRecommender.__init__(self, ratings, config)
+    def __init__(self, users=None, items=None, config=None, movie_to_imdb=None, user_pref_model=None, d2v_model=None):
+        BaseRecommender.__init__(self, users, items, config)
 
-        self.P = None
-        self.Q = None
-        self.b_i = None
+        self.user_factors = None
+        self.item_factors = None
+        self.item_bias = None
 
         self.avg_train_rating = None
 
         self.user_pref_model = user_pref_model
         self.d2v_model = d2v_model
+        self.movie_to_imdb = movie_to_imdb
 
-        if ratings is not None and config is not None:
+        if config and self.users and self.items:
             nb_users = len(self.users)
-            nb_movies = len(self.movies)
+            nb_movies = len(self.items)
             nb_latent_f = config['nb_latent_f']
             params = self._init_params(nb_users, nb_movies, nb_latent_f)
             self._set_params(params)
@@ -43,14 +37,18 @@ class MFNNModel(BaseRecommender):
         return params
 
     def _get_params(self):
-        return {'P': self.P, 'Q': self.Q, 'b_i': self.b_i, 'avg_train_rating': self.avg_train_rating,
+        return {'P': self.user_factors, 'Q': self.item_factors, 'b_i': self.item_bias, 'avg_train_rating': self.avg_train_rating,
+                'movie_to_imdb': self.movie_to_imdb,
                 'user_pref_nn_params': self.user_pref_model.param_values}
 
     def _set_params(self, params):
-        self.P = params['P']
-        self.Q = params['Q']
-        self.b_i = params['b_i']
+        self.user_factors = params['P']
+        self.item_factors = params['Q']
+        self.item_bias = params['b_i']
         self.avg_train_rating = params['avg_train_rating'] if 'avg_train_rating' in params else None
+
+        if self.movie_to_imdb is None and 'movie_to_imdb' in params:
+            self.movie_to_imdb = params['movie_to_imdb']
 
         if self.user_pref_model is None and 'user_pref_nn_params' in params:
             self.user_pref_model = UserPrefModel(self.config)
@@ -69,20 +67,20 @@ class MFNNModel(BaseRecommender):
             test_errors.append(test_error)
         return test_errors
 
-    def predict(self, user_id, movie_id):
+    def predict(self, user_id, item_id):
         u = self.users[user_id]
-        i = self.movies[movie_id]
-        imdb_id = self.movie_to_imdb[movie_id]
+        i = self.items[item_id]
+        imdb_id = self.movie_to_imdb[item_id]
 
-        qi = np.reshape(self.Q[i,:], (1, -1))
-        pu = np.reshape(self.P[u,:], (1, -1))
+        item_f_reshaped = np.reshape(self.item_factors[i, :], (1, -1))
+        user_f_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
         movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
-        oh_movie_id = np.zeros((1, len(self.movies)), dtype=np.int8)  # one hot encoding of movie_id
+        oh_movie_id = np.zeros((1, len(self.items)), dtype=np.int8)  # one hot encoding of movie_id
         oh_movie_id[0, i] = 1
         oh_user_id = np.zeros((1, len(self.users)), dtype=np.int8)  # one hot encoding of user_id
         oh_user_id[0, u] = 1
-        r_predict = self.avg_train_rating + self.b_i[i] + np.dot(self.P[u,:], self.Q[i,:].T) + \
-                    self.user_pref_model.predict(oh_movie_id, oh_user_id, qi, pu, movie_d2v)
+        r_predict = self.avg_train_rating + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T) + \
+                    self.user_pref_model.predict(oh_movie_id, oh_user_id, item_f_reshaped, user_f_reshaped, movie_d2v)
         return r_predict
 
     def fit(self, train, val=None, test=None, zero_sampler=None, verbose=1):
@@ -102,9 +100,9 @@ class MFNNModel(BaseRecommender):
 
         # AdaGrad
         if 'adagrad' in config and config['adagrad']:
-            ada_cache_b_i = np.zeros_like(self.b_i)
-            ada_cache_P = np.zeros_like(self.P)
-            ada_cache_Q = np.zeros_like(self.Q)
+            adac_item_bias = np.zeros_like(self.item_bias)
+            adac_user_factors = np.zeros_like(self.user_factors)
+            adac_item_factors = np.zeros_like(self.item_factors)
             ada_eps = config['ada_eps']
 
         train_rmse = []
@@ -139,38 +137,36 @@ class MFNNModel(BaseRecommender):
 
             # train / update model
             for row in train_for_epoch.itertuples():
-                user_id, movie_id, rating, imdb_id = row[1], row[2], row[3], row[5]
+                user_id, movie_id, rating = row[1], row[2], row[3]
 
                 u = self.users[user_id]
-                i = self.movies[movie_id]
+                i = self.items[movie_id]
+                imdb_id = self.movie_to_imdb[movie_id]
 
                 # copy parameters
-                b_i = self.b_i[i].copy()
-                P_u = self.P[u,:].copy()
-                Q_i = self.Q[i,:].copy()
 
                 # main model - predict rating and calc rating error
-                rating_mf = self.avg_train_rating + b_i + np.dot(P_u, Q_i.T)
+                rating_mf = self.avg_train_rating + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T)
 
                 rating_nn_target = float(rating - rating_mf)
 
                 # neural network model
-                qi_reshaped = np.reshape(Q_i, (1, -1))
-                pu_reshaped = np.reshape(P_u, (1, -1))
+                item_f_reshaped = np.reshape(self.item_factors[i, :], (1, -1))
+                user_f_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
                 movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
 
-                oh_movie_id = np.zeros((1, len(self.movies)), dtype=np.int8) # one hot encoding of movie_id
+                oh_movie_id = np.zeros((1, len(self.items)), dtype=np.int8) # one hot encoding of movie_id
                 oh_movie_id[0, i] = 1
                 oh_user_id = np.zeros((1, len(self.users)), dtype=np.int8) # one hot encoding of user_id
                 oh_user_id[0, u] = 1
 
-                rating_nn, loss, nn_dQ_i, nn_dP_u = self.user_pref_model.gradient_step(oh_movie_id,
-                                                                                       oh_user_id,
-                                                                                       qi_reshaped,
-                                                                                       pu_reshaped,
-                                                                                       movie_d2v,
-                                                                                       rating_nn_target,
-                                                                                       user_pref_lr)
+                rating_nn, loss, nn_d_item_f, nn_d_user_f = self.user_pref_model.gradient_step(oh_movie_id,
+                                                                                               oh_user_id,
+                                                                                               item_f_reshaped,
+                                                                                               user_f_reshaped,
+                                                                                               movie_d2v,
+                                                                                               rating_nn_target,
+                                                                                               user_pref_lr)
                 feature_losses.append(float(loss))
 
                 rating_predict = rating_mf + float(rating_nn)
@@ -179,24 +175,24 @@ class MFNNModel(BaseRecommender):
                 rating_errors.append(float(rating_error))
 
                 # calc gradients
-                db_i = rating_error - reg_lambda * b_i
-                dP_u = rating_error * Q_i - reg_lambda * P_u - user_pref_lambda_grad * nn_dP_u.flatten()
-                dQ_i = rating_error * P_u - reg_lambda * Q_i - user_pref_lambda_grad * nn_dQ_i.flatten()
+                d_item_bias = rating_error - reg_lambda * self.item_bias[i]
+                d_user_factors = rating_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :] - user_pref_lambda_grad * nn_d_user_f.flatten()
+                d_item_factors = rating_error * self.user_factors[u, :] - reg_lambda * self.item_factors[i, :] - user_pref_lambda_grad * nn_d_item_f.flatten()
 
                 # update AdaGrad caches and parameters
                 if 'adagrad' in config and config['adagrad']:
-                    ada_cache_b_i[i] += db_i ** 2
-                    ada_cache_P[u, :] += dP_u ** 2
-                    ada_cache_Q[i, :] += dQ_i ** 2
+                    adac_item_bias[i] += d_item_bias ** 2
+                    adac_user_factors[u, :] += d_user_factors ** 2
+                    adac_item_factors[i, :] += d_item_factors ** 2
 
                     # update parameters
-                    self.b_i[i] = b_i + lr * db_i / (np.sqrt(ada_cache_b_i[i]) + ada_eps)
-                    self.P[u, :] = P_u + lr * dP_u / (np.sqrt(ada_cache_P[u, :]) + ada_eps)
-                    self.Q[i, :] = Q_i + lr * dQ_i / (np.sqrt(ada_cache_Q[i, :]) + ada_eps)
+                    self.item_bias[i] += lr * d_item_bias / (np.sqrt(adac_item_bias[i]) + ada_eps)
+                    self.user_factors[u, :] += lr * d_user_factors / (np.sqrt(adac_user_factors[u, :]) + ada_eps)
+                    self.item_factors[i, :] += lr * d_item_factors / (np.sqrt(adac_item_factors[i, :]) + ada_eps)
                 else:
-                    self.b_i[i] = b_i + lr * db_i
-                    self.P[u, :] = P_u + lr * dP_u
-                    self.Q[i, :] = Q_i + lr * dQ_i
+                    self.item_bias[i] += lr * d_item_bias
+                    self.user_factors[u, :] += lr * d_user_factors
+                    self.item_factors[i, :] += lr * d_item_factors
 
                 # update progess bar
                 if verbose:

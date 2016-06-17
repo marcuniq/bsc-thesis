@@ -3,32 +3,13 @@ import sys
 import deepdish as dd
 import pandas as pd
 
-import utils
-
 
 class BaseRecommender(object):
-    def __init__(self, ratings=None, config=None):
-        self.ratings = ratings
+    def __init__(self, users, items, config=None):
+        self.users = users
+        self.items = items
         self.non_rated = None
         self.config = config
-
-        self.users = None
-        self.movies = None
-        self.movie_to_imdb = None
-
-        if ratings is not None:
-            self._create_lookup_tables(ratings)
-
-    def _create_lookup_tables(self, ratings):
-        users_unique = ratings['user_id'].unique()
-        nb_users = len(users_unique)
-        self.users = dict(zip(users_unique, range(nb_users)))  # lookup table for user_id to zero indexed number
-
-        movies_unique = ratings['movie_id'].unique()
-        nb_movies = len(movies_unique)
-        self.movies = dict(zip(movies_unique, range(nb_movies)))  # lookup table for user_id to zero indexed number
-
-        self.movie_to_imdb = utils.movie_to_imdb(ratings)
 
     def _get_params(self):
         pass
@@ -54,35 +35,33 @@ class BaseRecommender(object):
                 return
             print('[TIP] Next time specify overwrite=True in save_weights!')
 
-        to_save = {'config': self.config, 'params': self._get_params(), 'users': self.users, 'movies': self.movies,
-                   'movie_to_imdb': self.movie_to_imdb}
+        to_save = {'config': self.config, 'params': self._get_params(), 'users': self.users, 'items': self.items}
         dd.io.save(filepath, to_save)
 
     def load(self, filepath):
         loaded = dd.io.load(filepath)
         self.config = loaded['config']
         self.users = loaded['users']
-        self.movies = loaded['movies']
-        self.movie_to_imdb = loaded['movie_to_imdb']
+        self.items = loaded['movies'] if 'items' not in loaded else loaded['items']
         self._set_params(loaded['params'])
         return loaded
 
-    def predict(self, user_id, movie_id):
+    def predict(self, user_id, item_id):
         pass
 
-    def predict_for_user(self, user_id, movie_ids=None):
+    def predict_for_user(self, user_id, item_ids=None):
         result = []
-        if movie_ids is not None:
-            it = movie_ids
+        if item_ids is not None:
+            it = item_ids
         else:
-            it = self.movies.iterkeys()
+            it = self.items.iterkeys()
 
-        for movie_id in it:
-            r_predict = self.predict(user_id, movie_id)
-            result.append({'user_id': user_id, 'movie_id': movie_id, 'r_predict': r_predict})
+        for item_id in it:
+            r_predict = self.predict(user_id, item_id)
+            result.append({'user_id': user_id, 'movie_id': item_id, 'r_predict': r_predict})
         return pd.DataFrame(result).sort_values('r_predict', ascending=False).reset_index(drop=True)
 
-    def predict_for_movie(self, movie_id, user_ids=None):
+    def predict_for_movie(self, item_id, user_ids=None):
         result = []
         if user_ids is not None:
             it = user_ids
@@ -90,6 +69,6 @@ class BaseRecommender(object):
             it = self.users.iterkeys()
 
         for user_id in it:
-            r_predict = self.predict(user_id, movie_id)
-            result.append({'user_id': user_id, 'movie_id': movie_id, 'r_predict': r_predict})
+            r_predict = self.predict(user_id, item_id)
+            result.append({'user_id': user_id, 'movie_id': item_id, 'r_predict': r_predict})
         return pd.DataFrame(result).sort_values('r_predict', ascending=False).reset_index(drop=True)

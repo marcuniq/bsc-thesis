@@ -1,10 +1,11 @@
-import pandas as pd
 import os
 
-from slim import SLIMModel
-from train_eval_save import train_eval_save
-from utils import binarize_ratings
-from zero_sampler import ZeroSampler
+import pandas as pd
+
+from rec_si.train_eval_save import train_eval_save
+from rec_si.recommender.slim import SLIMModel
+from rec_si.sampler.zero_sampler import ZeroSampler
+from rec_si.utils import binarize_ratings, create_lookup_tables
 
 
 def train_slim(config):
@@ -33,7 +34,9 @@ def train_slim(config):
         print "experiment: ", config['experiment_name']
         print config
 
-    model = SLIMModel(ratings, config)
+    users, items = create_lookup_tables(ratings)
+
+    model = SLIMModel(users, items, config)
     model.fit(train)
 
     return model, config, None

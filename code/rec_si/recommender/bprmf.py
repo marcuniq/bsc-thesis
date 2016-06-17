@@ -4,15 +4,15 @@ from base_recommender import BaseRecommender
 
 
 class BPRMFModel(BaseRecommender):
-    def __init__(self, ratings=None, config=None):
-        BaseRecommender.__init__(self, ratings, config)
+    def __init__(self, users=None, items=None, config=None):
+        BaseRecommender.__init__(self, users, items, config)
         self.P = None
         self.Q = None
         self.b_i = None
 
-        if ratings is not None and config is not None:
+        if config and self.users and self.items:
             nb_users = len(self.users)
-            nb_movies = len(self.movies)
+            nb_movies = len(self.items)
             nb_latent_f = config['nb_latent_f']
             scale = config['init_params_scale'] if 'init_params_scale' in config else 0.001
             params = self._init_params(nb_users, nb_movies, nb_latent_f, scale=scale)
@@ -34,9 +34,9 @@ class BPRMFModel(BaseRecommender):
         self.Q = params['Q']
         self.b_i = params['b_i']
 
-    def predict(self, user_id, movie_id):
+    def predict(self, user_id, item_id):
         u = self.users[user_id]
-        i = self.movies[movie_id]
+        i = self.items[item_id]
         r_predict = self.b_i[i] + np.dot(self.P[u, :], self.Q[i, :].T)
         return r_predict
 
@@ -83,8 +83,8 @@ class BPRMFModel(BaseRecommender):
                 user_id, movie_id1, rating, imdb_id, movie_id2 = row[1], row[2], row[3], row[5], row[6]
 
                 u = self.users[user_id]
-                i = self.movies[movie_id1]
-                j = self.movies[movie_id2]
+                i = self.items[movie_id1]
+                j = self.items[movie_id2]
 
                 r_predict = self.b_i[i] + np.dot(self.P[u,:], self.Q[i,:].T)
 

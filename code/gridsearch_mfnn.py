@@ -1,13 +1,12 @@
 import multiprocessing
 import os
-
-from gensim.models import Doc2Vec
-from sklearn.grid_search import ParameterGrid
 import random
 
-from train_eval_save import train_eval_save
+from sklearn.grid_search import ParameterGrid
+
+from rec_si.train_eval_save import train_eval_save
+from rec_si.utils import merge_dicts, easy_parallize
 from train_mfnn import train_mfnn
-from utils import merge_dicts, easy_parallize
 
 
 def local_train_mfnn(args):
@@ -24,9 +23,9 @@ if __name__ == '__main__':
     dname = os.path.dirname(abspath)
     os.chdir(dname)
 
-    train_in_parallel = True
+    train_in_parallel = False
     grid_search = False
-    nb_random_samples = 2
+    nb_random_samples = 1
 
     params = {
         'lr': [0.003, 0.01, 0.03],
@@ -50,15 +49,15 @@ if __name__ == '__main__':
     if not grid_search and nb_random_samples < len(param_comb): # random search
         param_comb = random.sample(param_comb, nb_random_samples)
 
-    experiment_name = 'mfnn_ml-1m_e{}_tt-0.7_task-{}'
+    experiment_name = 'mfnn_ml-100k_e{}_tt-0.7_task-{}'
 
     config = {}
     config['nb_epochs'] = 20
-    config['ratings_path'] = 'data/splits/ml-1m/ratings.csv'
+    config['ratings_path'] = 'data/splits/ml-100k/ratings.csv'
     config['sparse_item'] = True
     config['train_test_split'] = 0.7
-    config['train_path'] = 'data/splits/ml-1m/sparse-item/0.7-train.csv'
-    config['test_path'] = 'data/splits/ml-1m/sparse-item/0.7-test.csv'
+    config['train_path'] = 'data/splits/ml-100k/sparse-item/0.7-train.csv'
+    config['test_path'] = 'data/splits/ml-100k/sparse-item/0.7-test.csv'
     config['test'] = True
     config['val'] = False
     if config['val']:
@@ -72,16 +71,16 @@ if __name__ == '__main__':
     config['model_save_dir'] = 'models/mfnn'
     config['metrics_save_dir'] = 'metrics/mfnn'
 
-    config['user_pref_input_user_id'] = True
-    config['user_pref_input_movie_id'] = True
+    config['user_pref_input_user_id'] = False
+    config['user_pref_input_movie_id'] = False
     config['user_pref_input_movie_d2v'] = True
 
     config['run_eval'] = True
     config['precision_recall_at_n'] = 20
-    config['verbose'] = 0
+    config['verbose'] = 1
     config['hit_threshold'] = 4
     config['top_n_predictions'] = 100
-    config['run_movie_metrics'] = False
+    config['run_movie_metrics'] = True
     config['eval_in_parallel'] = False
 
     all_configs = []
