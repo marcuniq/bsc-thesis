@@ -15,7 +15,7 @@ class MFNNModel(BaseRecommender):
         self.item_factors = None
         self.item_bias = None
 
-        self.avg_train_rating = None
+        self.global_bias = None
 
         self.user_pref_model = user_pref_model
         self.d2v_model = d2v_model
@@ -29,15 +29,15 @@ class MFNNModel(BaseRecommender):
             self._set_params(params)
 
     def _init_params(self, nb_users, nb_movies, nb_latent_f, scale=0.001):
-        P = np.random.uniform(low=-scale, high=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
-        Q = np.random.uniform(low=-scale, high=scale, size=(nb_movies, nb_latent_f)) # item latent factor matrix
-        b_i = np.random.uniform(low=-scale, high=scale, size=(nb_movies, 1)) # item bias vector
+        P = np.random.normal(scale=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
+        Q = np.random.normal(scale=scale, size=(nb_movies, nb_latent_f)) # item latent factor matrix
+        b_i = np.zeros((nb_movies, 1)) # item bias vector
 
         params = {'P': P, 'Q': Q, 'b_i': b_i}
         return params
 
     def _get_params(self):
-        return {'P': self.user_factors, 'Q': self.item_factors, 'b_i': self.item_bias, 'avg_train_rating': self.avg_train_rating,
+        return {'P': self.user_factors, 'Q': self.item_factors, 'b_i': self.item_bias, 'avg_train_rating': self.global_bias,
                 'movie_to_imdb': self.movie_to_imdb,
                 'user_pref_nn_params': self.user_pref_model.param_values}
 
@@ -45,7 +45,7 @@ class MFNNModel(BaseRecommender):
         self.user_factors = params['P']
         self.item_factors = params['Q']
         self.item_bias = params['b_i']
-        self.avg_train_rating = params['avg_train_rating'] if 'avg_train_rating' in params else None
+        self.global_bias = params['avg_train_rating'] if 'avg_train_rating' in params else None
 
         if self.movie_to_imdb is None and 'movie_to_imdb' in params:
             self.movie_to_imdb = params['movie_to_imdb']
@@ -79,7 +79,7 @@ class MFNNModel(BaseRecommender):
         oh_movie_id[0, i] = 1
         oh_user_id = np.zeros((1, len(self.users)), dtype=np.int8)  # one hot encoding of user_id
         oh_user_id[0, u] = 1
-        r_predict = self.avg_train_rating + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T) + \
+        r_predict = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T) + \
                     self.user_pref_model.predict(oh_movie_id, oh_user_id, item_f_reshaped, user_f_reshaped, movie_d2v)
         return r_predict
 
@@ -92,14 +92,15 @@ class MFNNModel(BaseRecommender):
         reg_lambda = config['reg_lambda']
 
         if config['use_avg_rating']:
-            self.avg_train_rating = train['rating'].mean()
+            self.global_bias = train['rating'].mean()
         else:
-            self.avg_train_rating = 0
+            self.global_bias = 0
 
         verbose = 'verbose' in config and config['verbose'] > 0
 
         # AdaGrad
         if 'adagrad' in config and config['adagrad']:
+            adac_global_bias = 0
             adac_item_bias = np.zeros_like(self.item_bias)
             adac_user_factors = np.zeros_like(self.user_factors)
             adac_item_factors = np.zeros_like(self.item_factors)
@@ -146,7 +147,7 @@ class MFNNModel(BaseRecommender):
                 # copy parameters
 
                 # main model - predict rating and calc rating error
-                rating_mf = self.avg_train_rating + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T)
+                rating_mf = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T)
 
                 rating_nn_target = float(rating - rating_mf)
 
@@ -175,21 +176,25 @@ class MFNNModel(BaseRecommender):
                 rating_errors.append(float(rating_error))
 
                 # calc gradients
+                d_global_bias = rating_error
                 d_item_bias = rating_error - reg_lambda * self.item_bias[i]
                 d_user_factors = rating_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :] - user_pref_lambda_grad * nn_d_user_f.flatten()
                 d_item_factors = rating_error * self.user_factors[u, :] - reg_lambda * self.item_factors[i, :] - user_pref_lambda_grad * nn_d_item_f.flatten()
 
                 # update AdaGrad caches and parameters
                 if 'adagrad' in config and config['adagrad']:
+                    adac_global_bias += d_global_bias ** 2
                     adac_item_bias[i] += d_item_bias ** 2
                     adac_user_factors[u, :] += d_user_factors ** 2
                     adac_item_factors[i, :] += d_item_factors ** 2
 
                     # update parameters
+                    self.global_bias += lr * d_global_bias / (np.sqrt(adac_global_bias) + ada_eps)
                     self.item_bias[i] += lr * d_item_bias / (np.sqrt(adac_item_bias[i]) + ada_eps)
                     self.user_factors[u, :] += lr * d_user_factors / (np.sqrt(adac_user_factors[u, :]) + ada_eps)
                     self.item_factors[i, :] += lr * d_item_factors / (np.sqrt(adac_item_factors[i, :]) + ada_eps)
                 else:
+                    self.global_bias += lr * d_global_bias
                     self.item_bias[i] += lr * d_item_bias
                     self.user_factors[u, :] += lr * d_user_factors
                     self.item_factors[i, :] += lr * d_item_factors

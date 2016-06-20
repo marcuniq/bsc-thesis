@@ -14,8 +14,7 @@ class MPCFModel(BaseRecommender):
         self.user_interest_factors = None
         self.user_interest_bias = None
         self.item_bias = None
-
-        self.avg_train_rating = None
+        self.global_bias = None
 
         self.si_user_model = None
         self.si_item_model = None
@@ -30,18 +29,18 @@ class MPCFModel(BaseRecommender):
             self._set_params(params)
 
     def _init_params(self, nb_users, nb_movies, nb_latent_f, nb_user_pref, scale=0.001):
-        user_factors = np.random.uniform(low=-scale, high=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
-        item_factors = np.random.uniform(low=-scale, high=scale, size=(nb_movies, nb_latent_f)) # item latent factor matrix
-        user_interest_factors = np.random.uniform(low=-scale, high=scale, size=(nb_users, nb_user_pref, nb_latent_f)) # user latent factor tensor
-        item_bias = np.random.uniform(low=-scale, high=scale, size=(nb_movies, 1)) # item bias vector
-        user_interest_bias = np.random.uniform(low=-scale, high=scale, size=(nb_users, nb_user_pref)) # user-interest bias matrix
+        user_factors = np.random.normal(scale=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
+        item_factors = np.random.normal(scale=scale, size=(nb_movies, nb_latent_f)) # item latent factor matrix
+        user_interest_factors = np.random.normal(scale=scale, size=(nb_users, nb_user_pref, nb_latent_f)) # user latent factor tensor
+        item_bias = np.zeros((nb_movies, 1)) # item bias vector
+        user_interest_bias = np.zeros((nb_users, nb_user_pref)) # user-interest bias matrix
 
         params = {'P': user_factors, 'Q': item_factors, 'W': user_interest_factors, 'b_i': item_bias, 'B_u': user_interest_bias}
         return params
 
     def _get_params(self):
         params = {'P': self.user_factors, 'Q': self.item_factors, 'W': self.user_interest_factors, 'b_i': self.item_bias,
-                  'B_u': self.user_interest_bias, 'avg_train_rating': self.avg_train_rating}
+                  'B_u': self.user_interest_bias, 'avg_train_rating': self.global_bias}
         if self.si_item_model is not None:
             params['si_item_nn_params'] = self.si_item_model.param_values
         return params
@@ -52,7 +51,7 @@ class MPCFModel(BaseRecommender):
         self.user_interest_factors = params['W']
         self.item_bias = params['b_i']
         self.user_interest_bias = params['B_u']
-        self.avg_train_rating = params['avg_train_rating'] if 'avg_train_rating' in params else None
+        self.global_bias = params['avg_train_rating'] if 'avg_train_rating' in params else None
 
     def _get_local_pref(self, u, i):
         max_score = False
@@ -79,7 +78,7 @@ class MPCFModel(BaseRecommender):
         u = self.users[user_id]
         i = self.items[item_id]
         local_pref, local_pref_score = self._get_local_pref(u, i)
-        r_predict = self.avg_train_rating + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T) + local_pref_score
+        r_predict = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T) + local_pref_score
         return r_predict
 
     def fit(self, train, val=None, test=None, zero_sampler=None):
@@ -95,9 +94,9 @@ class MPCFModel(BaseRecommender):
         si_user_lambda_d_user_f = config['si_user_lambda_d_user_f'] if 'si_user_lambda_d_user_f' in config else None
 
         if config['use_avg_rating']:
-            self.avg_train_rating = train['rating'].mean()
+            self.global_bias = train['rating'].mean()
         else:
-            self.avg_train_rating = 0
+            self.global_bias = 0
 
         verbose = 'verbose' in config and config['verbose'] > 0
 
@@ -108,6 +107,7 @@ class MPCFModel(BaseRecommender):
 
         # AdaGrad caches
         if 'adagrad' in config and config['adagrad']:
+            adac_global_bias = 0
             adac_item_bias = np.zeros_like(self.item_bias)
             adac_user_interest_bias = np.zeros_like(self.user_interest_bias)
             adac_user_factors = np.zeros_like(self.user_factors)
@@ -153,7 +153,7 @@ class MPCFModel(BaseRecommender):
                 local_pref, local_pref_score = self._get_local_pref(u, i)
 
                 # main model - predict rating and calc rating error
-                rating_predict = self.avg_train_rating + \
+                rating_predict = self.global_bias + \
                                  self.item_bias[i] +\
                                  np.dot(self.user_factors[u, :], self.item_factors[i, :].T) +\
                                  local_pref_score
@@ -162,6 +162,7 @@ class MPCFModel(BaseRecommender):
                 rating_errors.append(float(rating_error))
 
                 # calc gradients
+                d_global_bias = rating_error
                 d_item_bias = rating_error - reg_lambda * self.item_bias[i]
                 d_user_interest_bias = rating_error - reg_lambda * self.user_interest_bias[u, local_pref]
                 d_user_factors = rating_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :]
@@ -190,6 +191,7 @@ class MPCFModel(BaseRecommender):
 
                 # update AdaGrad caches and parameters
                 if 'adagrad' in config and config['adagrad']:
+                    adac_global_bias += d_global_bias ** 2
                     adac_item_bias[i] += d_item_bias ** 2
                     adac_user_interest_bias[u, local_pref] += d_user_interest_bias ** 2
                     adac_user_factors[u, :] += d_user_factors ** 2
@@ -197,12 +199,14 @@ class MPCFModel(BaseRecommender):
                     adac_user_interest_factors[u, local_pref, :] += d_user_interest_factors ** 2
 
                     # update parameters
+                    self.global_bias += lr * d_global_bias / (np.sqrt(adac_global_bias) + ada_eps)
                     self.item_bias[i] += lr * d_item_bias / (np.sqrt(adac_item_bias[i]) + ada_eps)
                     self.user_interest_bias[u, local_pref] += lr * d_user_interest_bias / (np.sqrt(adac_user_interest_bias[u, local_pref]) + ada_eps)
                     self.user_factors[u, :] += lr * d_user_factors / (np.sqrt(adac_user_factors[u, :]) + ada_eps)
                     self.user_interest_factors[u, local_pref, :] += lr * d_user_interest_factors / (np.sqrt(adac_user_interest_factors[u, local_pref, :]) + ada_eps)
                     self.item_factors[i, :] += lr * d_item_factors / (np.sqrt(adac_item_factors[i, :]) + ada_eps)
                 else:
+                    self.global_bias += lr * d_global_bias
                     self.item_bias[i] += lr * d_item_bias
                     self.user_interest_bias[u, local_pref] += lr * d_user_interest_bias
                     self.user_factors[u, :] += lr * d_user_factors
@@ -285,9 +289,9 @@ class MPCFModel(BaseRecommender):
         si_user_l_d_user_f = config['si_user_l_d_user_f'] if 'si_user_l_d_user_f' in config else None
 
         if config['use_avg_rating']:
-            self.avg_train_rating = train['rating'].mean()
+            self.global_bias = train['rating'].mean()
         else:
-            self.avg_train_rating = 0
+            self.global_bias = 0
 
         verbose = 'verbose' in config and config['verbose'] > 0
 
@@ -343,7 +347,7 @@ class MPCFModel(BaseRecommender):
                 local_pref, local_pref_score = self._get_local_pref(u, i)
 
                 # main model - predict rating and calc rating error
-                rating_predict = self.avg_train_rating + \
+                rating_predict = self.global_bias + \
                                  self.item_bias[i] + \
                                  np.dot(self.user_factors[u, :], self.item_factors[i, :].T) + \
                                  local_pref_score

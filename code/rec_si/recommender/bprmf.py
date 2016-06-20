@@ -19,9 +19,9 @@ class BPRMFModel(BaseRecommender):
             self._set_params(params)
 
     def _init_params(self, nb_users, nb_movies, nb_latent_f, scale=0.001):
-        P = np.random.uniform(low=-scale, high=scale, size=(nb_users, nb_latent_f))  # user latent factor matrix
-        Q = np.random.uniform(low=-scale, high=scale, size=(nb_movies, nb_latent_f))  # item latent factor matrix
-        b_i = np.random.uniform(low=-scale, high=scale, size=(nb_movies, 1)) # item bias vector
+        P = np.random.normal(scale=scale, size=(nb_users, nb_latent_f))  # user latent factor matrix
+        Q = np.random.normal(scale=scale, size=(nb_movies, nb_latent_f))  # item latent factor matrix
+        b_i = np.zeros((nb_movies, 1)) # item bias vector
 
         params = {'P': P, 'Q': Q, 'b_i': b_i}
         return params

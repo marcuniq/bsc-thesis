@@ -97,15 +97,15 @@ if __name__ == "__main__":
 
     config['zero_sample_factor'] = 3
 
-    config['binarize'] = False
+    config['binarize'] = True
     if config['binarize']:
         config['binarize_threshold'] = 1
         config['binarize_pos'] = 1
         config['binarize_neg'] = 0
 
-    config['use_avg_rating'] = True
+    config['use_avg_rating'] = False
 
-    config['experiment_name'] = 'si_ml-100k_e10_tt-0.7_cosine-0.1'
+    config['experiment_name'] = 'si_ml-100k_e10_tt-0.7_global-bias_lambda-item-1'
 
     config['si_item_model'] = True
     config['si_user_model'] = False
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         config['si_item_valid_id'] = 2
         config['si_item_lr'] = 0.01
         config['si_item_lr_decay'] = 0.02
-        config['si_item_lambda_d_item_f'] = 0.001
+        config['si_item_lambda_d_item_f'] = 1
         config['si_item_reg_lambda'] = 0.001
         config['si_item_cosine_lambda'] = 0.1
         config['si_item_nn_hidden'] = []
@@ -131,7 +131,7 @@ if __name__ == "__main__":
         config['si_user_lr_decay'] = 5e-4
         config['si_user_lambda_d_item_f'] = 0.1
         config['si_user_reg_lambda'] = 0.0001
-        config['si_user_cosine_lambda'] = 0.2
+        config['si_user_cosine_lambda'] = 0.5
         config['si_user_nn_hidden'] = []
 
         config['model_save_dir'] = 'models/mpcf-si'
