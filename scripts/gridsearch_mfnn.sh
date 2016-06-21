@@ -9,5 +9,6 @@
 
 script=gridsearch_mfnn.py
 projectDir=~/bsc-thesis/code
+workingDir=/home/slurm/unternaehrer-${SLURM_JOB_ID}
 
-/home/user/unternaehrer/anaconda2/bin/python $projectDir/$script
+THEANO_FLAGS="floatX=float32,base_compiledir=$workingDir" /home/user/unternaehrer/anaconda2/bin/python $projectDir/$script

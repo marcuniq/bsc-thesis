@@ -28,22 +28,22 @@ if __name__ == '__main__':
     nb_random_samples = 1
 
     params = {
-        'lr': [0.01, 0.02, 0.03, 0.04, 0.06, 0.1],
-        'lr_decay': [5e-4, 2e-2],
+        'lr': [0.01, 0.02, 0.03, 0.04],
+        'lr_decay': [1e-2, 2e-2],
         'reg_lambda': [0.01, 0.03, 0.06],
         'nb_latent_f': [64, 128],
         'nb_user_pref': [1, 2, 4],
-        'binarize': [True, False],
-        'use_avg_rating': [True, False],
+        'binarize': [True],
+        'use_avg_rating': [False],
         'zero_sample_factor': [5],
         'si_item_d2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
                       ],
-        'si_item_lr': [0.001, 0.003, 0.01, 0.03],
-        'si_item_lr_decay': [5e-4, 2e-2],
-        'si_item_lambda_d_item_f': [0.001, 0.01, 0.05, 0.1, 0.5],
+        'si_item_lr': [0.003, 0.01, 0.02, 0.03, 0.04],
+        'si_item_lr_decay': [1e-2, 2e-2],
+        'si_item_lambda_d_item_f': [0.05, 0.1, 0.2, 0.3, 0.4],
         'si_item_reg_lambda': [0.01, 0.03, 0.06],
-        'si_item_cosine_lambda': [0.01, 0.1, 1],
-        'si_item_nn_hidden': [[], [], [160]]
+        'si_item_cosine_lambda': [0.01, 0.1],
+        'si_item_nn_hidden': [[]]
     }
 
     param_comb = list(ParameterGrid(params))
@@ -108,5 +108,5 @@ if __name__ == '__main__':
     else:
         for c in all_configs:
             c['eval_in_parallel'] = True
-            c['pool_size'] = multiprocessing.cpu_count()
+            c['pool_size'] = 4 #multiprocessing.cpu_count()
             train_eval_save(c, train_mpcf)

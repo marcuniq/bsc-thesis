@@ -188,15 +188,15 @@ if __name__ == "__main__":
     all_docs = get_docs(subs_path, clean_tokenizer, stream=False)
 
     config = {}
-    config['size'] = 50
-    config['window'] = 10
-    config['min_count'] = 1
-    config['alpha'] = 0.1
-    config['min_alpha'] = 0.01
+    config['size'] = 20
+    config['window'] = 8
+    config['min_count'] = 2
+    config['alpha'] = 0.025
+    config['min_alpha'] = 0.001
     config['dm'] = 0
     config['dm_mean'] = 0
     config['dm_concat'] = 0
-    config['negative'] = 5
+    config['negative'] = 10
     config['hs'] = 0
     config['nb_epochs'] = 20
     config['train_words'] = False
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     config['alpha_delta'] = (config['alpha'] - config['min_alpha']) / config['nb_epochs']
     #config['alpha_decay'] = 3e-2
 
-    config['experiment_name'] = '20e_pv-dbow_size50_lr0.1-lin-delta_window10_neg5'
+    config['experiment_name'] = '20e_pv-dbow_size20_window8_neg10'
     config['eval'] = False
     config['cores'] = 4
     train_doc2vec(config, all_docs)
