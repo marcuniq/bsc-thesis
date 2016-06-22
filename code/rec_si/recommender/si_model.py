@@ -33,7 +33,7 @@ class NNSideInfoModel(BaseSideInfoModel):
         self.network = network
 
         if reg_lambda is not None and feature_vec_dict is not None:
-            loss = lasagne.objectives.squared_error(label_vec, label_predict).mean()
+            loss = T.sqrt(((label_vec - label_predict)**2).sum())
             # cosine similarity
             loss += cosine_lambda * (1.0 - (T.sum(label_vec * label_predict)) / (T.sqrt(T.sum(T.square(label_vec))) * T.sqrt(T.sum(T.square(label_predict)))))
             loss += reg_lambda * lasagne.regularization.regularize_network_params(network, lasagne.regularization.l2)

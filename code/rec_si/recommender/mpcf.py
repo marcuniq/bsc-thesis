@@ -102,8 +102,8 @@ class MPCFModel(BaseRecommender):
 
         train_rmse = []
         val_rmse = []
-        item_feature_rmse = []
-        user_feature_rmse = []
+        item_feature_loss = []
+        user_feature_loss = []
 
         # AdaGrad caches
         if 'adagrad' in config and config['adagrad']:
@@ -134,8 +134,8 @@ class MPCFModel(BaseRecommender):
             train_for_epoch = train_for_epoch.reindex(np.random.permutation(train_for_epoch.index))
 
             rating_errors = []
-            item_feature_losses = []
-            user_feature_losses = []
+            current_item_feature_losses = []
+            current_user_feature_losses = []
 
             if verbose:
                 total = len(train_for_epoch)
@@ -175,7 +175,7 @@ class MPCFModel(BaseRecommender):
                 if self.si_item_model is not None:
                     item_factors_reshaped = np.reshape(self.item_factors[i, :], (1, -1))
                     feature_loss, si_d_item_factors = self.si_item_model.step(item_factors_reshaped, movie_id, si_item_lr)
-                    item_feature_losses.append(float(feature_loss))
+                    current_item_feature_losses.append(float(feature_loss))
 
                     # update parameters
                     d_item_factors -= si_item_lambda_d_item_f * si_d_item_factors.flatten()
@@ -184,7 +184,7 @@ class MPCFModel(BaseRecommender):
                 if self.si_user_model is not None:
                     user_factors_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
                     feature_loss, si_d_user_factors = self.si_user_model.step(user_factors_reshaped, user_id, si_user_lr)
-                    user_feature_losses.append(float(feature_loss))
+                    current_user_feature_losses.append(float(feature_loss))
 
                     # update parameters
                     d_user_factors -= si_user_lambda_d_user_f * si_d_user_factors.flatten()
@@ -238,16 +238,16 @@ class MPCFModel(BaseRecommender):
             if verbose:
                 print "Train RMSE:", current_rmse
 
-            if len(item_feature_losses) > 0:
-                current_feature_rmse = np.sqrt(np.mean(item_feature_losses))
-                item_feature_rmse.append(current_feature_rmse)
+            if len(current_item_feature_losses) > 0:
+                current_avg_feature_loss = np.sqrt(np.mean(current_item_feature_losses))
+                item_feature_loss.append(current_avg_feature_loss)
                 if verbose:
-                    print "Item Feature RMSE:", current_feature_rmse
-            if len(user_feature_losses) > 0:
-                current_feature_rmse = np.sqrt(np.mean(user_feature_losses))
-                user_feature_rmse.append(current_feature_rmse)
+                    print "Item Avg Feature Loss:", current_avg_feature_loss
+            if len(current_user_feature_losses) > 0:
+                current_avg_feature_loss = np.sqrt(np.mean(current_user_feature_losses))
+                user_feature_loss.append(current_avg_feature_loss)
                 if verbose:
-                    print "User Feature RMSE:", current_feature_rmse
+                    print "User Avg Feature Loss:", current_avg_feature_loss
 
             # validation
             if val is not None and 'val' in config and config['val']:
@@ -272,8 +272,8 @@ class MPCFModel(BaseRecommender):
         # history
         history = {'train_rmse': train_rmse,
                    'val_rmse': val_rmse,
-                   'item_feature_rmse': item_feature_rmse,
-                   'user_feature_rmse': user_feature_rmse,
+                   'item_feature_loss': item_feature_loss,
+                   'user_feature_loss': user_feature_loss,
                    'test_rmse': test_rmse}
         return history
 
