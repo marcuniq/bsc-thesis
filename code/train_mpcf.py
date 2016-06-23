@@ -68,9 +68,11 @@ if __name__ == "__main__":
     config['lr'] = 0.01
     config['lr_decay'] = 0.02
     #config['lr_power_t'] = 0.25
-    config['reg_lambda'] = 0.06
+    config['reg_lambda'] = 0.01
     config['nb_latent_f'] = 128
     config['nb_user_pref'] = 4
+
+    config['batch_size'] = 10
 
     config['adagrad'] = True
     if config['adagrad']:
@@ -105,7 +107,7 @@ if __name__ == "__main__":
 
     config['use_avg_rating'] = False
 
-    config['experiment_name'] = 'si_ml-100k_e5_tt-0.7_si-diff-loss'
+    config['experiment_name'] = 'si_ml-100k_e5_tt-0.7_test_bs10'
 
     config['si_item_model'] = True
     config['si_user_model'] = False
@@ -114,7 +116,7 @@ if __name__ == "__main__":
         config['si_item_d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
         #config['si_item_vector_dict'] = ''
         config['si_item_valid_id'] = 2
-        config['si_item_lr'] = 0.1
+        config['si_item_lr'] = 0.01
         config['si_item_lr_decay'] = 5e-4
         config['si_item_lambda_d_item_f'] = 0.1
         config['si_item_reg_lambda'] = 0.01

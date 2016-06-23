@@ -33,7 +33,7 @@ class NNSideInfoModel(BaseSideInfoModel):
         self.network = network
 
         if reg_lambda is not None and feature_vec_dict is not None:
-            loss = T.sqrt(((label_vec - label_predict)**2).sum())
+            loss = ((label_vec - label_predict)**2).sum()
             # cosine similarity
             loss += cosine_lambda * (1.0 - (T.sum(label_vec * label_predict)) / (T.sqrt(T.sum(T.square(label_vec))) * T.sqrt(T.sum(T.square(label_predict)))))
             loss += reg_lambda * lasagne.regularization.regularize_network_params(network, lasagne.regularization.l2)
@@ -77,7 +77,7 @@ class ATSideInfoModel(BaseSideInfoModel):
 
         label_predict = np.dot(self.weights, biased_input_vec.T).reshape((-1,))  # vector
         error = label_vec - label_predict
-        loss = np.mean(np.square(error))
+        loss = np.sum(np.square(error))
         loss += self.reg_lambda * np.sqrt(np.sum(np.square(self.weights)))
         #loss += self.cosine_lambda * (1.0 - (np.sum(label_vec * label_predict) /
         #                                     (np.sqrt(np.sum(np.square(label_vec))) * np.sqrt(np.sum(np.square(label_predict))))))
@@ -111,7 +111,7 @@ def create_si_item_model(config, ratings):
     si_item_nn.insert(0, config['nb_latent_f'])
     si_item_nn.append(int(feature_vec_dict[config['si_item_valid_id']].shape[0]))
     config['si_item_nn'] = si_item_nn
-    #si_item_model = ATSideInfoModel(config['si_item_nn'], config['si_item_reg_lambda'], feature_vec_dict)
+    #si_item_model = ATSideInfoModel(config['si_item_nn'], config['si_item_reg_lambda'], feature_vec_dict=feature_vec_dict)
     si_item_model = NNSideInfoModel(config['si_item_nn'],
                                     config['si_item_reg_lambda'],
                                     config['si_item_cosine_lambda'],

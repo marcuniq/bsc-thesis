@@ -32,8 +32,8 @@ class MPCFModel(BaseRecommender):
         user_factors = np.random.normal(scale=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
         item_factors = np.random.normal(scale=scale, size=(nb_movies, nb_latent_f)) # item latent factor matrix
         user_interest_factors = np.random.normal(scale=scale, size=(nb_users, nb_user_pref, nb_latent_f)) # user latent factor tensor
-        item_bias = np.zeros((nb_movies, 1)) # item bias vector
-        user_interest_bias = np.zeros((nb_users, nb_user_pref)) # user-interest bias matrix
+        item_bias = np.random.normal(scale=scale, size=(nb_movies, 1)) # item bias vector
+        user_interest_bias = np.random.normal(scale=scale, size=(nb_users, nb_user_pref)) # user-interest bias matrix
 
         params = {'P': user_factors, 'Q': item_factors, 'W': user_interest_factors, 'b_i': item_bias, 'B_u': user_interest_bias}
         return params
@@ -93,6 +93,8 @@ class MPCFModel(BaseRecommender):
         si_user_lr = config['si_user_lr'] if 'si_user_lr' in config else None
         si_user_lambda_d_user_f = config['si_user_lambda_d_user_f'] if 'si_user_lambda_d_user_f' in config else None
 
+        batch_size = config['batch_size']
+
         if config['use_avg_rating']:
             self.global_bias = train['rating'].mean()
         else:
@@ -131,7 +133,7 @@ class MPCFModel(BaseRecommender):
                 train_for_epoch = train
 
             # shuffle train
-            train_for_epoch = train_for_epoch.reindex(np.random.permutation(train_for_epoch.index))
+            train_for_epoch = train_for_epoch.reindex(np.random.permutation(train_for_epoch.index)).reset_index(drop=True)
 
             rating_errors = []
             current_item_feature_losses = []
@@ -143,80 +145,102 @@ class MPCFModel(BaseRecommender):
                 bar.start()
                 progress = 0
 
+            def chunks(df, n):
+                """Yield successive n-sized chunks from l."""
+                for i in range(0, len(df), n):
+                    yield df.iloc[i:i + n]
+
             # train / update model
-            for row in train_for_epoch.itertuples():
-                user_id, movie_id, rating = row[1], row[2], row[3]
+            for df_batch in chunks(train_for_epoch, batch_size): #train_for_epoch.groupby(np.arange(len(train_for_epoch))//batch_size):#
+                batch_d_global_bias = 0
+                batch_d_item_bias = np.zeros_like(self.item_bias)
+                batch_d_user_interest_bias = np.zeros_like(self.user_interest_bias)
+                batch_d_user_factors = np.zeros_like(self.user_factors)
+                batch_d_user_interest_factors = np.zeros_like(self.user_interest_factors)
+                batch_d_item_factors = np.zeros_like(self.item_factors)
 
-                u = self.users[user_id]
-                i = self.items[movie_id]
+                for row in df_batch.itertuples():
+                    user_id, movie_id, rating = row[1], row[2], row[3]
 
-                local_pref, local_pref_score = self._get_local_pref(u, i)
+                    u = self.users[user_id]
+                    i = self.items[movie_id]
 
-                # main model - predict rating and calc rating error
-                rating_predict = self.global_bias + \
-                                 self.item_bias[i] +\
-                                 np.dot(self.user_factors[u, :], self.item_factors[i, :].T) +\
-                                 local_pref_score
+                    local_pref, local_pref_score = self._get_local_pref(u, i)
 
-                rating_error = rating - rating_predict
-                rating_errors.append(float(rating_error))
+                    # main model - predict rating and calc rating error
+                    rating_predict = self.global_bias + \
+                                     self.item_bias[i] +\
+                                     np.dot(self.user_factors[u, :], self.item_factors[i, :].T) +\
+                                     local_pref_score
 
-                # calc gradients
-                d_global_bias = rating_error
-                d_item_bias = rating_error - reg_lambda * self.item_bias[i]
-                d_user_interest_bias = rating_error - reg_lambda * self.user_interest_bias[u, local_pref]
-                d_user_factors = rating_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :]
-                d_user_interest_factors = rating_error * self.item_factors[i, :] - \
-                                          reg_lambda * self.user_interest_factors[u, local_pref, :]
-                d_item_factors = rating_error * (self.user_factors[u, :] + self.user_interest_factors[u, local_pref, :]) - \
-                                 reg_lambda * self.item_factors[i, :]
+                    rating_error = rating - rating_predict
+                    rating_errors.append(float(rating_error))
 
-                # side information model - predict feature vector, calculate feature vector error
-                if self.si_item_model is not None:
-                    item_factors_reshaped = np.reshape(self.item_factors[i, :], (1, -1))
-                    feature_loss, si_d_item_factors = self.si_item_model.step(item_factors_reshaped, movie_id, si_item_lr)
-                    current_item_feature_losses.append(float(feature_loss))
+                    # calc gradients
+                    d_global_bias = rating_error
+                    d_item_bias = rating_error - reg_lambda * self.item_bias[i]
+                    d_user_interest_bias = rating_error - reg_lambda * self.user_interest_bias[u, local_pref]
+                    d_user_factors = rating_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :]
+                    d_user_interest_factors = rating_error * self.item_factors[i, :] - \
+                                              reg_lambda * self.user_interest_factors[u, local_pref, :]
+                    d_item_factors = rating_error * (self.user_factors[u, :] + self.user_interest_factors[u, local_pref, :]) - \
+                                     reg_lambda * self.item_factors[i, :]
 
-                    # update parameters
-                    d_item_factors -= si_item_lambda_d_item_f * si_d_item_factors.flatten()
+                    # side information model - predict feature vector, calculate feature vector error
+                    if self.si_item_model is not None:
+                        item_factors_reshaped = np.reshape(self.item_factors[i, :], (1, -1))
+                        feature_loss, si_d_item_factors = self.si_item_model.step(item_factors_reshaped, movie_id, si_item_lr)
+                        current_item_feature_losses.append(float(feature_loss))
 
-                # side information model - predict feature vector, calculate feature vector error
-                if self.si_user_model is not None:
-                    user_factors_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
-                    feature_loss, si_d_user_factors = self.si_user_model.step(user_factors_reshaped, user_id, si_user_lr)
-                    current_user_feature_losses.append(float(feature_loss))
+                        # update parameters
+                        d_item_factors -= si_item_lambda_d_item_f * si_d_item_factors.flatten()
 
-                    # update parameters
-                    d_user_factors -= si_user_lambda_d_user_f * si_d_user_factors.flatten()
+                    # side information model - predict feature vector, calculate feature vector error
+                    if self.si_user_model is not None:
+                        user_factors_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
+                        feature_loss, si_d_user_factors = self.si_user_model.step(user_factors_reshaped, user_id, si_user_lr)
+                        current_user_feature_losses.append(float(feature_loss))
 
-                # update AdaGrad caches and parameters
+                        # update parameters
+                        d_user_factors -= si_user_lambda_d_user_f * si_d_user_factors.flatten()
+
+                    # update AdaGrad caches
+                    if 'adagrad' in config and config['adagrad']:
+                        adac_global_bias += d_global_bias ** 2
+                        adac_item_bias[i] += d_item_bias ** 2
+                        adac_user_interest_bias[u, local_pref] += d_user_interest_bias ** 2
+                        adac_user_factors[u, :] += d_user_factors ** 2
+                        adac_item_factors[i, :] += d_item_factors ** 2
+                        adac_user_interest_factors[u, local_pref, :] += d_user_interest_factors ** 2
+
+                    # add to batch gradient
+                    batch_d_global_bias += d_global_bias
+                    batch_d_item_bias[i] += d_item_bias
+                    batch_d_user_interest_bias[u, local_pref] += d_user_interest_bias
+                    batch_d_user_factors[u, :] += d_user_factors
+                    batch_d_user_interest_factors[u, local_pref, :] += d_user_interest_factors
+                    batch_d_item_factors[i, :] += d_item_factors
+
+                    # update progress bar
+                    if verbose:
+                        progress += 1
+                        bar.update(progress)
+
+                # update parameters
                 if 'adagrad' in config and config['adagrad']:
-                    adac_global_bias += d_global_bias ** 2
-                    adac_item_bias[i] += d_item_bias ** 2
-                    adac_user_interest_bias[u, local_pref] += d_user_interest_bias ** 2
-                    adac_user_factors[u, :] += d_user_factors ** 2
-                    adac_item_factors[i, :] += d_item_factors ** 2
-                    adac_user_interest_factors[u, local_pref, :] += d_user_interest_factors ** 2
-
-                    # update parameters
-                    self.global_bias += lr * d_global_bias / (np.sqrt(adac_global_bias) + ada_eps)
-                    self.item_bias[i] += lr * d_item_bias / (np.sqrt(adac_item_bias[i]) + ada_eps)
-                    self.user_interest_bias[u, local_pref] += lr * d_user_interest_bias / (np.sqrt(adac_user_interest_bias[u, local_pref]) + ada_eps)
-                    self.user_factors[u, :] += lr * d_user_factors / (np.sqrt(adac_user_factors[u, :]) + ada_eps)
-                    self.user_interest_factors[u, local_pref, :] += lr * d_user_interest_factors / (np.sqrt(adac_user_interest_factors[u, local_pref, :]) + ada_eps)
-                    self.item_factors[i, :] += lr * d_item_factors / (np.sqrt(adac_item_factors[i, :]) + ada_eps)
+                    self.global_bias += lr * batch_d_global_bias / (batch_size * (np.sqrt(adac_global_bias) + ada_eps))
+                    self.item_bias += lr * batch_d_item_bias / (batch_size * (np.sqrt(adac_item_bias) + ada_eps))
+                    self.user_interest_bias += lr * batch_d_user_interest_bias / (batch_size * (np.sqrt(adac_user_interest_bias) + ada_eps))
+                    self.user_factors += lr * batch_d_user_factors / (batch_size * (np.sqrt(adac_user_factors) + ada_eps))
+                    self.user_interest_factors += lr * batch_d_user_interest_factors / (batch_size * (np.sqrt(adac_user_interest_factors) + ada_eps))
+                    self.item_factors += lr * batch_d_item_factors / (batch_size * (np.sqrt(adac_item_factors) + ada_eps))
                 else:
-                    self.global_bias += lr * d_global_bias
-                    self.item_bias[i] += lr * d_item_bias
-                    self.user_interest_bias[u, local_pref] += lr * d_user_interest_bias
-                    self.user_factors[u, :] += lr * d_user_factors
-                    self.user_interest_factors[u, local_pref, :] += lr * d_user_interest_factors
-                    self.item_factors[i, :] += lr * d_item_factors
-
-                # update progess bar
-                if verbose:
-                    progress += 1
-                    bar.update(progress)
+                    self.global_bias += lr * batch_d_global_bias / batch_size
+                    self.item_bias += lr * batch_d_item_bias / batch_size
+                    self.user_interest_bias += lr * batch_d_user_interest_bias / batch_size
+                    self.user_factors += lr * batch_d_user_factors / batch_size
+                    self.user_interest_factors += lr * batch_d_user_interest_factors / batch_size
+                    self.item_factors += lr * batch_d_item_factors / batch_size
 
             if verbose:
                 bar.finish()
@@ -239,12 +263,12 @@ class MPCFModel(BaseRecommender):
                 print "Train RMSE:", current_rmse
 
             if len(current_item_feature_losses) > 0:
-                current_avg_feature_loss = np.sqrt(np.mean(current_item_feature_losses))
+                current_avg_feature_loss = np.mean(current_item_feature_losses)
                 item_feature_loss.append(current_avg_feature_loss)
                 if verbose:
                     print "Item Avg Feature Loss:", current_avg_feature_loss
             if len(current_user_feature_losses) > 0:
-                current_avg_feature_loss = np.sqrt(np.mean(current_user_feature_losses))
+                current_avg_feature_loss = np.mean(current_user_feature_losses)
                 user_feature_loss.append(current_avg_feature_loss)
                 if verbose:
                     print "User Avg Feature Loss:", current_avg_feature_loss
