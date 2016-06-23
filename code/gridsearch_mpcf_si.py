@@ -67,6 +67,8 @@ if __name__ == '__main__':
         config['train_val_split'] = 0.8
         config['val_path'] = 'data/splits/ml-100k/sparse-item/0.7-0.8-val.csv'
 
+    config['batch_size'] = 10
+
     config['adagrad'] = True
     if config['adagrad']:
         config['ada_eps'] = 1e-6

@@ -31,7 +31,7 @@ class MFNNModel(BaseRecommender):
     def _init_params(self, nb_users, nb_movies, nb_latent_f, scale=0.001):
         P = np.random.normal(scale=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
         Q = np.random.normal(scale=scale, size=(nb_movies, nb_latent_f)) # item latent factor matrix
-        b_i = np.zeros((nb_movies, 1)) # item bias vector
+        b_i = np.random.normal(scale=scale, size=(nb_movies, 1)) # item bias vector
 
         params = {'P': P, 'Q': Q, 'b_i': b_i}
         return params
@@ -108,7 +108,7 @@ class MFNNModel(BaseRecommender):
 
         train_rmse = []
         val_rmse = []
-        feature_rmse = []
+        feature_loss = []
 
         if verbose:
             print "Start training ..."
@@ -128,7 +128,7 @@ class MFNNModel(BaseRecommender):
             train_for_epoch = train_for_epoch.reindex(np.random.permutation(train_for_epoch.index))
 
             rating_errors = []
-            feature_losses = []
+            current_feature_losses = []
 
             if verbose:
                 total = len(train_for_epoch)
@@ -168,7 +168,7 @@ class MFNNModel(BaseRecommender):
                                                                                                movie_d2v,
                                                                                                rating_nn_target,
                                                                                                user_pref_lr)
-                feature_losses.append(float(loss))
+                current_feature_losses.append(float(loss))
 
                 rating_predict = rating_mf + float(rating_nn)
 
@@ -223,10 +223,10 @@ class MFNNModel(BaseRecommender):
                 print "Train RMSE:", current_rmse
 
             if self.user_pref_model is not None:
-                current_feature_rmse = np.sqrt(np.mean(feature_losses))
-                feature_rmse.append(current_feature_rmse)
+                current_avg_feature_loss = np.mean(current_feature_losses)
+                feature_loss.append(current_avg_feature_loss)
                 if verbose:
-                    print "Feature RMSE:", current_feature_rmse
+                    print "Avg Feature Loss:", current_avg_feature_loss
 
             # validation
             if val is not None and 'val' in config and config['val']:
@@ -249,5 +249,5 @@ class MFNNModel(BaseRecommender):
                 print "Test RMSE:", test_rmse
 
         # history
-        history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'feature_rmse': feature_rmse, 'test_rmse': test_rmse}
+        history = {'train_rmse': train_rmse, 'val_rmse': val_rmse, 'feature_loss': feature_loss, 'test_rmse': test_rmse}
         return history
