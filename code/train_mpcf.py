@@ -72,8 +72,6 @@ if __name__ == "__main__":
     config['nb_latent_f'] = 128
     config['nb_user_pref'] = 4
 
-    config['batch_size'] = 10
-
     config['adagrad'] = True
     if config['adagrad']:
         config['ada_eps'] = 1e-6
@@ -107,7 +105,7 @@ if __name__ == "__main__":
 
     config['use_avg_rating'] = False
 
-    config['experiment_name'] = 'si_ml-100k_e5_tt-0.7_test_bs10'
+    config['experiment_name'] = 'si_ml-100k_e5_tt-0.7_test'
 
     config['si_item_model'] = True
     config['si_user_model'] = False
