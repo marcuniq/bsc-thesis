@@ -10,18 +10,11 @@ class UserPrefModel(object):
         user_factors = T.matrix('user_factors', dtype=theano.config.floatX)
         item_feature_vec = T.matrix('item_feature_vec', dtype=theano.config.floatX)
 
-        oh_item_id = T.matrix('item_id', dtype='int8') # one hot encoding
-        oh_user_id = T.matrix('user_id', dtype='int8')
-
         rating_target = T.scalar('rating_target', dtype=theano.config.floatX)
 
         input_layers = []
         input_layers.append(lasagne.layers.InputLayer(shape=(None, config['nb_latent_f']), input_var=item_factors))
         input_layers.append(lasagne.layers.InputLayer(shape=(None, config['nb_latent_f']), input_var=user_factors))
-        if 'user_pref_input_user_id' in config and config['user_pref_input_user_id']:
-            input_layers.append(lasagne.layers.InputLayer(shape=(None, config['nb_users']), input_var=oh_user_id))
-        if 'user_pref_input_movie_id' in config and config['user_pref_input_movie_id']:
-            input_layers.append(lasagne.layers.InputLayer(shape=(None, config['nb_movies']), input_var=oh_item_id))
         if 'user_pref_input_movie_d2v' in config and config['user_pref_input_movie_d2v']:
             input_layers.append(lasagne.layers.InputLayer(shape=(None, config['nb_d2v_features']), input_var=item_feature_vec))
 
@@ -48,10 +41,10 @@ class UserPrefModel(object):
         self.param_values = lasagne.layers.get_all_param_values(network)
         self.network = network
 
-        self.predict = theano.function([oh_item_id, oh_user_id, item_factors, user_factors, item_feature_vec],
+        self.predict = theano.function([item_factors, user_factors, item_feature_vec],
                                        rating_predict,
                                        allow_input_downcast=True, on_unused_input='ignore')
-        self.gradient_step = theano.function([oh_item_id, oh_user_id, item_factors, user_factors, item_feature_vec, rating_target, lr],
+        self.gradient_step = theano.function([item_factors, user_factors, item_feature_vec, rating_target, lr],
                                              outputs=[rating_predict, loss, d_item_factors, d_user_factors],
                                              updates=updates, allow_input_downcast=True, on_unused_input='ignore')
 

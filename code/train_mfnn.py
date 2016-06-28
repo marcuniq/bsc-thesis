@@ -67,7 +67,7 @@ if __name__ == "__main__":
     config['verbose'] = 1
 
     config['lr'] = 0.03
-    config['lr_decay'] = 5e-4
+    config['lr_decay'] = 0.02
     #config['lr_power_t'] = 0.25
     config['reg_lambda'] = 0.01
     config['nb_latent_f'] = 128
@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
     config['model_save_dir'] = 'models/mfnn'
 
-    config['zero_sample_factor'] = 3
+    config['zero_sample_factor'] = 5
 
     config['binarize'] = True
     if config['binarize']:
@@ -101,19 +101,17 @@ if __name__ == "__main__":
         config['binarize_pos'] = 1
         config['binarize_neg'] = 0
 
-    config['experiment_name'] = 'mfnn_ml-100k_e10_tt-0.7_user-pref-fixed'
+    config['experiment_name'] = 'mfnn_ml-100k_e5_tt-0.2_test'
 
-    config['use_avg_rating'] = True
+    config['use_avg_rating'] = False
 
     config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
-    config['user_pref_lr'] = 0.01
-    config['user_pref_lr_decay'] = 5e-4
+    config['user_pref_lr'] = 0.03
+    config['user_pref_lr_decay'] = 0.02
     config['user_pref_lambda_grad'] = 0.1
     config['user_pref_reg_lambda'] = 0.01
     config['user_pref_hidden_dim'] = [10, 1]
 
-    config['user_pref_input_user_id'] = False
-    config['user_pref_input_movie_id'] = False
     config['user_pref_input_movie_d2v'] = True
 
     config['run_eval'] = True
