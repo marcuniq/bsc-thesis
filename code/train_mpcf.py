@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     config['use_avg_rating'] = False
 
-    config['experiment_name'] = 'si_ml-100k_e5_tt-0.7_test'
+    config['experiment_name'] = 'si_ml-100k_e5_tt-0.7_three-similar'
 
     config['si_item_model'] = True
     config['si_user_model'] = False
@@ -116,10 +116,12 @@ if __name__ == "__main__":
         config['si_item_valid_id'] = 2
         config['si_item_lr'] = 0.01
         config['si_item_lr_decay'] = 5e-4
-        config['si_item_lambda_d_item_f'] = 0.1
+        config['si_item_lambda_d_item_f'] = 0.001
         config['si_item_reg_lambda'] = 0.01
         config['si_item_cosine_lambda'] = 0.1
         config['si_item_nn_hidden'] = []
+
+        config['si_item_topn_similar'] = 0
 
         config['model_save_dir'] = 'models/mpcf-si'
 

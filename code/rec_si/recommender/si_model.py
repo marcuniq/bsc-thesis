@@ -15,8 +15,9 @@ class BaseSideInfoModel(object):
 
 class NNSideInfoModel(BaseSideInfoModel):
     """Neural Network"""
-    def __init__(self, dim, reg_lambda=None, cosine_lambda=None, feature_vec_dict=None):
+    def __init__(self, dim, reg_lambda=None, cosine_lambda=None, feature_vec_dict=None, topn=None):
         self.vector_dict = feature_vec_dict
+        self.topn = topn
 
         input_vec = T.matrix(dtype=theano.config.floatX)
         label_vec = T.vector(dtype=theano.config.floatX)
@@ -49,7 +50,21 @@ class NNSideInfoModel(BaseSideInfoModel):
 
     def step(self, input_vec, user_or_item_id, lr):
         label_vec = self.vector_dict[user_or_item_id]
-        return self._gradient_step(input_vec, label_vec, lr)
+        loss, grad = self._gradient_step(input_vec, label_vec, lr)
+
+        if self.topn:
+            imdb_id = self.vector_dict.movie_to_imdb[user_or_item_id]
+            key = '{}.txt'.format(imdb_id)
+            topn_similar = self.vector_dict.store.most_similar(key, topn=self.topn)
+
+            for k, s in topn_similar:
+                l, g = self._gradient_step(input_vec, self.vector_dict.store[k], lr)
+                loss += l
+                grad += g
+
+            loss /= (self.topn+1)
+            grad /= (self.topn+1)
+        return loss, grad
 
     def set_params(self, param_values):
         params_float32 = map(lambda arr: arr.astype(np.float32), param_values)
@@ -115,7 +130,8 @@ def create_si_item_model(config, ratings):
     si_item_model = NNSideInfoModel(config['si_item_nn'],
                                     config['si_item_reg_lambda'],
                                     config['si_item_cosine_lambda'],
-                                    feature_vec_dict)
+                                    feature_vec_dict,
+                                    config['si_item_topn_similar'])
     return si_item_model, config
 
 

@@ -128,8 +128,9 @@ class MovieIdToDocVec(TransformedDict):
 
 class UserIdToDocVec(TransformedDict):
     """Maps user id to document vector"""
-    def __init__(self, docvecs, ratings):
-        self.store = docvecs
+    def __init__(self, d2v_model, ratings):
+        self.d2v_model = d2v_model
+        self.store = d2v_model.docvecs
         self.movie_to_imdb = movie_to_imdb(ratings)
 
     def __keytransform__(self, key):
