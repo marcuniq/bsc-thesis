@@ -75,13 +75,10 @@ class MFNNModel(BaseRecommender):
         item_f_reshaped = np.reshape(self.item_factors[i, :], (1, -1))
         user_f_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
         movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
-        oh_movie_id = np.zeros((1, len(self.items)), dtype=np.int8)  # one hot encoding of movie_id
-        oh_movie_id[0, i] = 1
-        oh_user_id = np.zeros((1, len(self.users)), dtype=np.int8)  # one hot encoding of user_id
-        oh_user_id[0, u] = 1
-        r_predict = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T) + \
-                    self.user_pref_model.predict(oh_movie_id, oh_user_id, item_f_reshaped, user_f_reshaped, movie_d2v)
-        return r_predict
+
+        rating_mf = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T)
+        r_predict = rating_mf + self.user_pref_model.predict(item_f_reshaped, user_f_reshaped, movie_d2v)
+        return float(r_predict)
 
     def fit(self, train, val=None, test=None, zero_sampler=None, verbose=1):
 
@@ -144,42 +141,39 @@ class MFNNModel(BaseRecommender):
                 i = self.items[movie_id]
                 imdb_id = self.movie_to_imdb[movie_id]
 
-                # copy parameters
-
                 # main model - predict rating and calc rating error
                 rating_mf = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T)
 
-                rating_nn_target = float(rating - rating_mf)
+                rating_mf_error = float(rating - rating_mf)
 
                 # neural network model
                 item_f_reshaped = np.reshape(self.item_factors[i, :], (1, -1))
                 user_f_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
                 movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
 
-                oh_movie_id = np.zeros((1, len(self.items)), dtype=np.int8) # one hot encoding of movie_id
-                oh_movie_id[0, i] = 1
-                oh_user_id = np.zeros((1, len(self.users)), dtype=np.int8) # one hot encoding of user_id
-                oh_user_id[0, u] = 1
-
-                rating_nn, loss, nn_d_item_f, nn_d_user_f = self.user_pref_model.gradient_step(oh_movie_id,
-                                                                                               oh_user_id,
-                                                                                               item_f_reshaped,
-                                                                                               user_f_reshaped,
-                                                                                               movie_d2v,
-                                                                                               rating_nn_target,
-                                                                                               user_pref_lr)
+                predicted_error, loss, \
+                nn_d_item_f, nn_d_user_f = self.user_pref_model.gradient_step(item_f_reshaped,
+                                                                              user_f_reshaped,
+                                                                              movie_d2v,
+                                                                              rating_mf_error,
+                                                                              user_pref_lr)
                 current_feature_losses.append(float(loss))
+                predicted_error = float(predicted_error)
 
-                rating_predict = rating_mf + float(rating_nn)
+                rating_predict = rating_mf + predicted_error
 
                 rating_error = rating - rating_predict
                 rating_errors.append(float(rating_error))
 
                 # calc gradients
-                d_global_bias = rating_error
-                d_item_bias = rating_error - reg_lambda * self.item_bias[i]
-                d_user_factors = rating_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :] - user_pref_lambda_grad * nn_d_user_f.flatten()
-                d_item_factors = rating_error * self.user_factors[u, :] - reg_lambda * self.item_factors[i, :] - user_pref_lambda_grad * nn_d_item_f.flatten()
+                d_global_bias = rating_mf_error
+                d_item_bias = rating_mf_error - reg_lambda * self.item_bias[i]
+                d_user_factors = rating_mf_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :] \
+                                 - user_pref_lambda_grad * nn_d_user_f.flatten() \
+                                 - user_pref_lambda_grad * (rating_mf_error - predicted_error) * self.item_factors[i, :]
+                d_item_factors = rating_mf_error * self.user_factors[u, :] - reg_lambda * self.item_factors[i, :] \
+                                 - user_pref_lambda_grad * nn_d_item_f.flatten() \
+                                 - user_pref_lambda_grad * (rating_mf_error - predicted_error) * self.user_factors[u,:]
 
                 # update AdaGrad caches and parameters
                 if 'adagrad' in config and config['adagrad']:

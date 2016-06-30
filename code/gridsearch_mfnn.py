@@ -71,8 +71,6 @@ if __name__ == '__main__':
     config['model_save_dir'] = 'models/mfnn'
     config['metrics_save_dir'] = 'metrics/mfnn'
 
-    config['user_pref_input_user_id'] = False
-    config['user_pref_input_movie_id'] = False
     config['user_pref_input_movie_d2v'] = True
 
     config['run_eval'] = True
