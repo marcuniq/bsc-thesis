@@ -1,0 +1,9 @@
+\chapter{Conclusions}
+\label{c:conclusions}
+
+In this work we have developed two models (MPCFs-SI and MFNN) which incorporate feature vectors of side information in order to improve top-N recommendations.
+While similar approaches like \cite{Bao2014} and \cite{Almahairi2015} have shown improvement in rating prediction on almost all of their datasets, we were able to outperform the baseline recommender MPCFs on top-N recommendations only slightly on our two MovieLens datasets.
+Our second model MFNN always performed worse than the baseline recommender.
+
+The learning scheme we employed consisted of two steps: first extract feature vectors from movie subtitles via the well established algorithm of Paragraph Vectors\\ \cite{Le2014a}, then using those feature vectors in our models.
+Future research efforts should attempt to fully joint learn a matrix factorization model and a movie subtitle model.

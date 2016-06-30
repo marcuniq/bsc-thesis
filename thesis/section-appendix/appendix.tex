@@ -1,0 +1,52 @@
+\chapter{Appendix}
+\label{a:appendix}
+
+\section{Best Parameters}
+\subsection{MPCFs-SI}
+\subsubsection{MovieLens 100k}
+Matrix factorization model:\\
+learning rate: 0.01, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 128, number of user local preferences $T$: 4, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5\\
+Feature prediction model:\\
+learning rate: 0.03, learning rate decay: 0.02, regularization parameter $\lambda_{reg}$: 0.01, balancing parameter $\lambda_{ed}$: 0.001, balancing parameter $\lambda_{cos}$: 0.7
+
+\subsubsection{MovieLens 1M}
+Matrix factorization model:\\
+learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 96, number of user local preferences $T$: 2, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5\\
+Feature prediction model:\\
+learning rate: 0.03, learning rate decay: 0.02, regularization parameter $\lambda_{reg}$: 0.01, balancing parameter $\lambda_{ed}$: 0.0003, balancing parameter $\lambda_{cos}$: 2
+
+\subsection{MFNN}
+\subsubsection{MovieLens 100k}
+Matrix factorization model:\\
+learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 128, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5
+Neural network model:\\
+layer dimensions: [306, 4, 1], learning rate: 0.01, regularization parameter $\lambda_{reg}$: 0.01, balancing parameter $\lambda_{nn}$: 0.1
+
+
+\subsubsection{MovieLens 1M}
+Matrix factorization model:\\
+learning rate: 0.06, learning rate decay: 0.02, number of epochs: 10, number of latent factors $k$: 128, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 4
+Neural network model:\\
+layer dimensions: [306, 4, 1], learning rate: 0.003, regularization parameter $\lambda_{reg}$: 0.003, balancing parameter $\lambda_{nn}$: 0.3
+
+\subsection{MPCFs}
+\subsubsection{MovieLens 100k}
+learning rate: 0.01, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 128, number of user local preferences $T$: 4, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5
+
+\subsubsection{MovieLens 1M}
+learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 128, number of user local preferences $T$: 2, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5
+
+
+\subsection{BPRMF}
+\subsubsection{MovieLens 100k}
+learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors: 128, regularization parameter: 0.01, triplet sample factor: 5
+
+\subsubsection{MovieLens 1M}
+learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors: 128, regularization parameter: 0.001, triplet sample factor: 5
+
+\subsection{SLIM}
+\subsubsection{MovieLens 100k}
+number of epochs: 5, fit intercept: false, ignore negative weights: true, $l_1$ regularization: 0.003, $l_2$ regularization: 0.00003
+
+\subsubsection{MovieLens 1M}
+number of epochs: 5, fit intercept: true, ignore negative weights: true, $l_1$ regularization: 0.001, $l_2$ regularization: 0.003

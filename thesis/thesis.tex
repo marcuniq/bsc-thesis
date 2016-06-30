@@ -1,0 +1,72 @@
+\documentclass{ddis-thesis}
+\usepackage{amsmath, amsthm, amssymb}
+%\usepackage[latin1]{inputenc}
+\usepackage[utf8]{inputenc}
+\inputencoding{utf8}
+\usepackage{program}
+\usepackage{mathrsfs}
+\usepackage{amsfonts}
+\usepackage{scrextend}
+\usepackage{tabularx}
+\usepackage{ dsfont }
+\usepackage{multirow}
+
+
+\usepackage{fancyvrb}
+\DefineVerbatimEnvironment{code}{Verbatim}{fontsize=\small}
+\DefineVerbatimEnvironment{example}{Verbatim}{fontsize=\small}
+
+
+\usepackage{fancyhdr}% fancyhdr related command; details in its documentation
+\pagestyle{fancy}
+\fancyhead{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE]{\leftmark}
+\fancyhead[LO]{\rightmark}
+
+\usepackage{graphicx}
+\author{Marco Unternährer}
+\title{Heterogeneous Information Sources for Recommender Systems}
+\begin{document}
+
+
+
+% *************** Front matter ***************
+
+\frontmatter
+\input{section-title/title.tex}
+
+\input{section-acknowledgements/acknowledgements.tex}
+\input{section-abstract/zusammenfassung.tex}
+\input{section-abstract/abstract.tex}
+
+\tableofcontents
+
+% *************** Main matter ***************
+\mainmatter
+
+\input{section-introduction/introduction.tex}
+\input{section-chapter1/chapter1.tex}
+\input{section-chapter2/chapter2.tex}
+\input{section-conclusions/conclusions.tex}
+
+% *************** Bibliography ***************
+\bibliographystyle{apalike}
+\bibliography{C:/Users/Marco/Documents/MendeleyBibtex/BSc-Thesis}
+
+% *************** Appendixes ***************
+\appendix
+\input{section-appendix/appendix.tex}
+
+% *************** Back matter ***************
+\backmatter
+
+\normalfont
+\clearpage
+\listoffigures
+
+\clearpage
+\listoftables
+
+
+\end{document}

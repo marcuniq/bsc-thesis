@@ -1,0 +1,52 @@
+\chapter{Introduction}
+\label{c:introduction}
+
+Recommender systems are software systems suggesting items to users which might fit their personal tastes.
+Such systems play a crucial part in e-commerce, social networks, news, music and video websites.
+
+This work investigates methods which make use of data about the users, the items and ratings.
+
+In Chapter \ref{c:incorporating-extra-data} we present two ways of incorporating extra data into recommender systems.
+The evaluation of the proposed methods are compared with state-of-the-art methods in Chapter \ref{c:evaluation}.
+The first section of this chapter gives an a brief overview over different methods for recommending systems.
+We further discuss related work in Section \ref{st:related-work} and conclude this chapter with our motivation for this work.
+
+\section{Background}
+\label{st:background}
+
+Methods which try to predict valuable items for a given user can be broadly classified into two groups: collaborative filtering (CF) based methods and content based methods.
+These methods differ in what kind of input data they need.
+Collaborative filtering methods make use of the user-item rating matrix in order to build models \cite{Kabbur2014}.
+Among all the CF algorithms, the most successful ones are the latent factor models \cite{Bao2014}.
+These models try to explain user ratings by characterizing both items and users on factors inferred from the rating patterns \cite{Bao2014}.
+Content based methods on the other hand make use of meta data about the items as well as the users.
+A combination of several methods is referred to as hybrid recommender systems \cite{Ricci2011}.
+The purpose of such hybrid systems is to use the advantages of one method and fix the disadvantages of another \cite{Ricci2011}.
+
+While CF techniques are very popular and widely used, one of its main disadvantages is known as the cold start problem \cite{Christoffel2014}.
+Collaborative filtering methods require new users to rate some items before the system can suggest items, and new items need to be rated before it can be recommended to users.
+In case of the cold start problem, the rating history on a user or item is not sufficient to generalize well to future preferences.
+Often though, other sources of information provide richer cues on cold start users or items.
+
+
+\section{Related Work}
+\label{st:related-work}
+In this section, we review related approaches to our work.
+
+Simultaneously considering the ratings and the accompanied review text was proposed in \cite{Bao2014}.
+The presented model, called \textbf{TopicMF}, learns a recommender model by combining latent factor modeling of rating data with topic modeling in user-review texts.
+\cite{Bao2014} show on 22 real-world datasets that their method handles the data sparsity better than state-of-the-art latent factor models.
+
+\cite{Almahairi2015} also have shown that utilizing additional data as a way of regularizing the derived item representations improve the generalization performance of a rating prediction model.
+While \cite{Bao2014} have used topic modeling for the user-review text, \cite{Almahairi2015} proposed a distributed bag-of-word approach \textbf{BoWLF} and a recurrent neural network approach \textbf{LMLF} to model the user-review texts.
+
+
+\section{Motivation}
+\label{st:motivation}
+
+As we have discussed in the previous section, recent work has shown that better rating predictions can be obtained by incorporating text-based side information.
+Motivated by these recent successes, here we explore alternative approaches to exploiting side information for top-N recommendations.
+Specifically, we study how feature vectors extracted from movie subtitles can be used to improve the performance of a latent factor model.
+
+We introduce two approaches to incorporate side information into recommender and compare these to state-of-the-art-based approaches \cite{Kabbur2015,Ning2011,Rendle2009}.
+ 

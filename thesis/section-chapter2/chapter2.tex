@@ -1,0 +1,122 @@
+\chapter{Evaluation}
+\label{c:evaluation}
+
+In the previous chapter, we introduced two approaches to incorporate side information into recommender.
+The first section of this chapter gives an overview of the used datasets (Section \ref{st:datasets}), followed by the baseline recommender (Section \ref{st:baseline}) and the evaluation methodology (Section \ref{st:methodology}).
+We then state which performance metrics were calculated (Section \ref{st:performance-metrics}).
+Section \ref{st:performance-comparison} concludes this chapter by showing how the proposed models perform compared to state-of-the-art models.
+
+
+\section{Datasets}
+\label{st:datasets}
+Our datasets are based on the MovieLens 100k and the MovieLens 1M datasets\footnote{MovieLens Datasets - http://grouplens.org/datasets/movielens/}.
+We could only include ratings of movies for which we found the movie subtitles, which were downloaded from opensubtitles\footnote{Opensubtitles - http://opensubtitles.org}.
+The datasets have rating values from 1 to 5.
+Converting the ratings into implicit feedback by setting the positive ratings to 1 was applied as it is commonly done for the top-N recommendation task \cite{Kabbur2015}.
+Table \ref{tab:datasets} shows the number of ratings and movies we could preserve in our subsets.
+
+
+\begin{table}[h]
+	\begin{center}
+		\begin{tabularx}{0.9\linewidth}{Xccc}
+			\hline \hline
+			\textbf{Dataset} & \textbf{\# Ratings} & \textbf{\# Movies} & \textbf{\# Users} \\
+			MovieLens 100k & 100'000 & 1682 & 943 \\
+			Our ML-100k subset & 91'178 & 1261 & 943 \\
+			MovieLens 1M & 1'000'000 & 3883 & 6040 \\
+			Our ML-1M subset & 978'026 & 3005 & 6040 \\
+			\hline \hline
+		\end{tabularx}
+	\end{center}
+	\caption{Datasets}
+	\label{tab:datasets}
+\end{table}
+
+
+\section{Baseline}
+\label{st:baseline}
+
+We compare the two proposed approaches, MPCFs-SI (Section \ref{sst:mpcfs-si}) and MFNN (Section \ref{sst:mfnn}), against three baseline methods.
+The baseline recommender consist of the nonlinear matrix factorization model MPCFs discussed in Section \ref{st:mpcf}, a linear recommender called SLIM \cite{Ning2011}, and another state-of-the-art recommender also based on a latent factor model obtained with matrix factorization, called BPRMF \cite{Rendle2009}.
+
+\section{Methodology}
+\label{st:methodology}
+The standard way of splitting datasets for evaluating recommendation systems is that a percentage of each user's ratings remain in the training set while the rest goes into the test set.
+However, we have subdivided our datasets, such that 70\% of each movie's ratings was used for training, and the rest for testing.
+The idea behind this way of splitting the data is that we wanted to make the movie data especially sparse.
+We have also made sure, that each user has at least one rating in the test set in order to measure the performance.
+The performance of the methods are evaluated using five different randomly drawn splits in a manner just described.
+
+We report the metrics after 20 iterations for MPCFs, MPCFs-SI and BPRMF.
+The number of iterations for the SLIM model was a hyperparameter.
+We have found that 5 epochs give us the best results.
+Our model MFNN is computationally quite expensive and takes a lot of time.
+We had to limit the number of iterations of that model for the MovieLens 1M dataset to 10 epochs.
+
+\section{Performance Metrics}
+\label{st:performance-metrics}
+We use area under the ROC curve (AUC) as our main metric to evaluate each approach.
+Moreover, we have adopted several commonly used metrics to measure the performance of the recommender.
+The following metrics were calculated: area under the ROC curve (AUC), Precision@20 (P@20), Recall@20 (R@20), Mean Reciprocal Rank (MRR) and Spearman Rank Correlation (SRC).
+Further, we have measured an additional metric related to AUC: Instead of recommending items to users and calculate the ranking metric, we were recommending users to items and calculating the rank metric for each item.
+We call this metric IAUC.
+
+
+\section{Performance Comparison}
+\label{st:performance-comparison}
+
+We have used the metrics defined in Section \ref{st:performance-metrics} to determine the performance of the models introduced in Section \ref{st:using-extra-data} and the baseline recommender.
+The results are summarized in Table \ref{tab:performance}.
+MPCFs-SI performs slightly better on both MovieLens datasets than the best baseline recommender, which is MPCFs.
+Our second model MFNN is inferior to \text{MPCFs} on both datasets.
+
+We also show in Table \ref{tab:item-factor-sim} that similar movies have a high cosine similarity (defined in Eq. \ref{eq:cosine-sim}) in the document vector space.
+In fact, the sequals to the listed movies were the most similar or second most similar movie in that space.
+Moreover, when we look at the item factor vector space, the results show that using MPCFs-SI improves the cosine similarity of almost all listed items compared to using MPCFs.
+The best performing models on the MovieLens 1M dataset were used to calculate the cosine similarities in Table \ref{tab:item-factor-sim}.
+
+\begin{table}[h]
+	\begin{center}
+		\begin{tabularx}{0.9\linewidth}{cXcccccc}
+			\hline \hline
+			& \textbf{Method} & \textbf{AUC} & \textbf{IAUC} & \textbf{P@20} & \textbf{R@20} & \textbf{MRR} & \textbf{SRC}\\
+			\hline
+			\parbox[t]{2mm}{\multirow{6}{*}{\rotatebox[origin=c]{90}{ML-100k}}} & Perfect & 100.0 & 100.0 & 100.0 & 100.0 & 1.0 & 1.0\\
+			& MPCFs-SI & 93.76 & 90.83 & 28.16 & 44.27 & 0.6866 & 0.2005\\
+			& MFNN & 93.55 & 89.50 & 28.88 & 44.45 & 0.6850 & 0.1927 \\
+			& MPCFs & 93.65 & 90.78 & 27.79 & 43.55 & 0.6770 & 0.1974 \\
+			& BPRMF & 92.20 & 68.03 & 18.00 & 27.38 & 0.3703 & 0.1567 \\
+			& SLIM & 91.45 & 85.20 & 23.49 & 37.75 & 0.5993 & 0.1880 \\
+			\hline
+			\parbox[t]{2mm}{\multirow{6}{*}{\rotatebox[origin=c]{90}{ML-1M}}} & Perfect & 100.0 & 100.0 & 100.0 & 100.0 & 1.0 & 1.0\\
+			& MPCFs-SI & 92.88 & 92.15 & 32.11 & 32.77 & 0.6941 & 0.2260 \\
+			& MFNN &  &  &  &  &  &  \\
+			& MPCFs & 92.81 & 92.08 & 32.71 & 33.44 & 0.7035 & 0.2223 \\
+			& BPRMF & 91.82 & 67.54 & 21.23 & 20.13 & 0.4430 & 0.2013 \\
+			& SLIM & 91.23 & 88.00 & 28.59 & 28.76 & 0.6465 &  0.2322 \\
+			\hline \hline
+		\end{tabularx}
+	\end{center}
+	\caption{Performance metrics}
+	\label{tab:performance}
+\end{table}
+
+
+\begin{table}[h]
+	\begin{center}
+		\begin{tabularx}{0.9\linewidth}{XXccc}
+			\hline \hline
+			\textbf{Movie} & \textbf{Sequal} & \textbf{Doc2Vec} & \textbf{MPCFs} & \textbf{MPCFs-SI} \\
+			\hline
+			Free Willy & Free Willy 2 & 0.8694 & 0.6923 & 0.7051 \\
+			Jurassic Park & Jurassic Park 2 & 0.6796 & 0.5837 & 0.6171 \\
+			Scream & Scream 2 & 0.7514 & 0.6868 & 0.7233 \\
+			Species & Species II & 0.6831 & 0.6170 & 0.7064 \\
+			Star Wars V & Star Wars VI & 0.9231 & 0.6900 & 0.7221\\
+			Toy Story & Toy Story 2 & 0.7529 & 0.6696 & 0.6678 \\
+			\hline \hline
+		\end{tabularx}
+	\end{center}
+	\caption{Item cosine similarities, measured in the document vector space and the item factor vector space of the according model.}
+	\label{tab:item-factor-sim}
+\end{table}
