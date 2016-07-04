@@ -32,14 +32,13 @@ if __name__ == '__main__':
         'lr_decay': [5e-4, 2e-2],
         'reg_lambda': [0.001, 0.003, 0.01],
         'nb_latent_f': [64, 96, 128],
-        'binarize': [True, False],
-        'use_avg_rating': [True, False],
+        'binarize': [True],
+        'use_avg_rating': [False],
         'zero_sample_factor': [3, 5],
         'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
                       ],
         'user_pref_lr': [0.003, 0.01, 0.03],
         'user_pref_lr_decay': [5e-4, 2e-2],
-        'user_pref_lambda_grad': [0.01, 0.03, 0.1, 0.3],
         'user_pref_reg_lambda': [0.0003, 0.001, 0.003],
         'user_pref_hidden_dim': [[4, 1], [10, 1], [100, 1]]
     }

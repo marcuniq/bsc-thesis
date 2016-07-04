@@ -85,7 +85,6 @@ class MFNNModel(BaseRecommender):
         config = self.config
         lr = config['lr']
         user_pref_lr = config['user_pref_lr']
-        user_pref_lambda_grad = config['user_pref_lambda_grad']
         reg_lambda = config['reg_lambda']
 
         if config['use_avg_rating']:
@@ -151,29 +150,25 @@ class MFNNModel(BaseRecommender):
                 user_f_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
                 movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
 
-                predicted_error, loss, \
+                nn_ui, loss, \
                 nn_d_item_f, nn_d_user_f = self.user_pref_model.gradient_step(item_f_reshaped,
                                                                               user_f_reshaped,
                                                                               movie_d2v,
                                                                               rating_mf_error,
                                                                               user_pref_lr)
                 current_feature_losses.append(float(loss))
-                predicted_error = float(predicted_error)
+                nn_ui = float(nn_ui)
 
-                rating_predict = rating_mf + predicted_error
+                rating_predict = rating_mf + nn_ui
 
                 rating_error = rating - rating_predict
                 rating_errors.append(float(rating_error))
 
                 # calc gradients
-                d_global_bias = rating_mf_error
-                d_item_bias = rating_mf_error - reg_lambda * self.item_bias[i]
-                d_user_factors = rating_mf_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :] \
-                                 - user_pref_lambda_grad * nn_d_user_f.flatten() \
-                                 - user_pref_lambda_grad * (rating_mf_error - predicted_error) * self.item_factors[i, :]
-                d_item_factors = rating_mf_error * self.user_factors[u, :] - reg_lambda * self.item_factors[i, :] \
-                                 - user_pref_lambda_grad * nn_d_item_f.flatten() \
-                                 - user_pref_lambda_grad * (rating_mf_error - predicted_error) * self.user_factors[u,:]
+                d_global_bias = rating_error
+                d_item_bias = rating_error - reg_lambda * self.item_bias[i]
+                d_user_factors = rating_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :] - nn_d_user_f.flatten()
+                d_item_factors = rating_error * self.user_factors[u, :] - reg_lambda * self.item_factors[i, :] - nn_d_item_f.flatten()
 
                 # update AdaGrad caches and parameters
                 if 'adagrad' in config and config['adagrad']:
