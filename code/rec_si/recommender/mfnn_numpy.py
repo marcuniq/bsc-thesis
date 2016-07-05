@@ -6,9 +6,9 @@ from base_recommender import BaseRecommender
 from user_pref_model import UserPrefModel
 
 
-class MFNNModel(BaseRecommender):
+class MFNNModelNumpy(BaseRecommender):
 
-    def __init__(self, users=None, items=None, config=None, movie_to_imdb=None, user_pref_model=None, d2v_model=None):
+    def __init__(self, users=None, items=None, config=None, movie_to_imdb=None,d2v_model=None):
         BaseRecommender.__init__(self, users, items, config)
 
         self.user_factors = None
@@ -17,42 +17,47 @@ class MFNNModel(BaseRecommender):
 
         self.global_bias = None
 
-        self.user_pref_model = user_pref_model
+        self.nn_w1 = None
+        self.nn_w2 = None
+
         self.d2v_model = d2v_model
         self.movie_to_imdb = movie_to_imdb
 
         if config and self.users and self.items:
             nb_users = len(self.users)
             nb_movies = len(self.items)
-            nb_latent_f = config['nb_latent_f']
-            params = self._init_params(nb_users, nb_movies, nb_latent_f)
+            self.nb_latent_f = config['nb_latent_f']
+            nb_d2v_features = config['nb_d2v_features']
+            nb_hidden_neurons = config['nb_hidden_neurons']
+            params = self._init_params(nb_users, nb_movies, self.nb_latent_f, nb_d2v_features, nb_hidden_neurons)
             self._set_params(params)
 
-    def _init_params(self, nb_users, nb_movies, nb_latent_f, scale=0.001):
+    def _init_params(self, nb_users, nb_movies, nb_latent_f, nb_d2v_features, nb_hidden_neurons, scale=0.001):
         P = np.random.normal(scale=scale, size=(nb_users, nb_latent_f)) # user latent factor matrix
         Q = np.random.normal(scale=scale, size=(nb_movies, nb_latent_f)) # item latent factor matrix
         b_i = np.random.normal(scale=scale, size=(nb_movies, 1)) # item bias vector
+        nb_input_dim = 2*nb_latent_f + nb_d2v_features + 1
+        nn_w1 = np.random.rand(nb_input_dim, nb_hidden_neurons) / np.sqrt(nb_input_dim) # W'
+        nn_w2 = np.random.rand(nb_hidden_neurons, 1) / np.sqrt(nb_hidden_neurons) # w
 
-        params = {'P': P, 'Q': Q, 'b_i': b_i}
+        params = {'P': P, 'Q': Q, 'b_i': b_i, 'nn_w1': nn_w1, 'nn_w2': nn_w2}
         return params
 
     def _get_params(self):
         return {'P': self.user_factors, 'Q': self.item_factors, 'b_i': self.item_bias, 'avg_train_rating': self.global_bias,
-                'movie_to_imdb': self.movie_to_imdb,
-                'user_pref_nn_params': self.user_pref_model.param_values}
+                'movie_to_imdb': self.movie_to_imdb}
 
     def _set_params(self, params):
         self.user_factors = params['P']
         self.item_factors = params['Q']
         self.item_bias = params['b_i']
+        self.nn_w1 = params['nn_w1']
+        self.nn_w2 = params['nn_w2']
         self.global_bias = params['avg_train_rating'] if 'avg_train_rating' in params else None
 
         if self.movie_to_imdb is None and 'movie_to_imdb' in params:
             self.movie_to_imdb = params['movie_to_imdb']
 
-        if self.user_pref_model is None and 'user_pref_nn_params' in params:
-            self.user_pref_model = UserPrefModel(self.config)
-            self.user_pref_model.set_params(params['user_pref_nn_params'])
         if self.d2v_model is None and 'd2v_model' in self.config:
             self.d2v_model = Doc2Vec.load(self.config['d2v_model'])
 
@@ -72,20 +77,31 @@ class MFNNModel(BaseRecommender):
         i = self.items[item_id]
         imdb_id = self.movie_to_imdb[item_id]
 
-        item_f_reshaped = np.reshape(self.item_factors[i, :], (1, -1))
-        user_f_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
-        movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
+        rating_mf = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :],
+                                                                  self.item_factors[i, :].T)
 
-        rating_mf = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T)
-        r_predict = rating_mf + self.user_pref_model.predict(item_f_reshaped, user_f_reshaped, movie_d2v)
+        # nn_ui
+        input_vec = np.concatenate(
+            (self.item_factors[i, :],
+             self.user_factors[u, :],
+             self.d2v_model.docvecs['{}.txt'.format(imdb_id)],
+             [1])).reshape((-1, 1))
+
+        z = np.dot(input_vec.T, self.nn_w1)
+        # a = 1 / (1 + np.exp(-z)) # sigmoid activation function
+        a = np.maximum(0, z)  # relu activation function
+        nn_ui = np.dot(a, self.nn_w2)
+
+        r_predict = rating_mf + nn_ui
+
         return float(r_predict)
 
     def fit(self, train, val=None, test=None, zero_sampler=None, verbose=1):
 
         config = self.config
         lr = config['lr']
-        user_pref_lr = config['user_pref_lr']
         reg_lambda = config['reg_lambda']
+        nn_reg_lambda = config['nn_reg_lambda']
 
         if config['use_avg_rating']:
             self.global_bias = train['rating'].mean()
@@ -100,6 +116,8 @@ class MFNNModel(BaseRecommender):
             adac_item_bias = np.zeros_like(self.item_bias)
             adac_user_factors = np.zeros_like(self.user_factors)
             adac_item_factors = np.zeros_like(self.item_factors)
+            adac_nn_w1 = np.zeros_like(self.nn_w1)
+            adac_nn_w2 = np.zeros_like(self.nn_w2)
             ada_eps = config['ada_eps']
 
         train_rmse = []
@@ -110,7 +128,7 @@ class MFNNModel(BaseRecommender):
             print "Start training ..."
         for epoch in range(config['nb_epochs']):
             if verbose:
-                print "epoch {}, lr {}, user_pref_lr {}".format(epoch, lr, user_pref_lr)
+                print "epoch {}, lr {}".format(epoch, lr)
 
             if zero_sampler and 'zero_samples_total' in config:
                 if verbose:
@@ -124,7 +142,6 @@ class MFNNModel(BaseRecommender):
             train_for_epoch = train_for_epoch.reindex(np.random.permutation(train_for_epoch.index))
 
             rating_errors = []
-            current_feature_losses = []
 
             if verbose:
                 total = len(train_for_epoch)
@@ -140,36 +157,50 @@ class MFNNModel(BaseRecommender):
                 i = self.items[movie_id]
                 imdb_id = self.movie_to_imdb[movie_id]
 
-                # main model - predict rating and calc rating error
-                rating_mf = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :], self.item_factors[i, :].T)
-                rating_mf = float(rating_mf)
-                rating_mf_error = float(rating - rating_mf)
+                # predict rating and calc rating error
+                rating_mf = self.global_bias + self.item_bias[i] + np.dot(self.user_factors[u, :],
+                                                                          self.item_factors[i, :].T)
 
-                # neural network model
-                item_f_reshaped = np.reshape(self.item_factors[i, :], (1, -1))
-                user_f_reshaped = np.reshape(self.user_factors[u, :], (1, -1))
-                movie_d2v = np.reshape(self.d2v_model.docvecs['{}.txt'.format(imdb_id)], (1, -1))
+                # nn_ui
+                input_vec = np.concatenate(
+                    (self.item_factors[i, :],
+                     self.user_factors[u, :],
+                     self.d2v_model.docvecs['{}.txt'.format(imdb_id)],
+                     [1])).reshape((-1, 1))
 
-                nn_ui, loss, \
-                nn_d_item_f, nn_d_user_f = self.user_pref_model.gradient_step(item_f_reshaped,
-                                                                              user_f_reshaped,
-                                                                              movie_d2v,
-                                                                              rating_mf,
-                                                                              rating,
-                                                                              user_pref_lr)
-                current_feature_losses.append(float(loss))
-                nn_ui = float(nn_ui)
+                z = np.dot(input_vec.T, self.nn_w1)
+                # a = 1 / (1 + np.exp(-z)) # sigmoid activation function
+                a = np.maximum(0, z) # relu activation function
+                nn_ui = np.dot(a, self.nn_w2)
 
-                rating_predict = rating_mf + nn_ui
+                rating_predict = float(rating_mf + nn_ui)
 
                 rating_error = rating - rating_predict
                 rating_errors.append(float(rating_error))
 
                 # calc gradients
+                nn_d_out = -1 * rating_error
+                nn_d_w2 = nn_d_out * a
+                nn_d_w2 = np.reshape(nn_d_w2, (-1, 1))
+                #deriv = np.vectorize(lambda x: x * (1 - x)) # if sigmoid
+                deriv = np.vectorize(lambda x: 1 if x > 0 else 0) # if relu (max)
+                nn_d_hidden = np.dot(nn_d_out, self.nn_w2.T) * deriv(z)
+                nn_d_w1 = np.dot(input_vec, nn_d_hidden)
+                nn_d_input = np.dot(nn_d_hidden, self.nn_w1.T).flatten()
+
+                nn_d_item_f = nn_d_input[:self.nb_latent_f]
+                nn_d_user_f = nn_d_input[self.nb_latent_f:2*self.nb_latent_f]
+
+                # add reg to nn
+                nn_d_w2 += nn_reg_lambda * self.nn_w2
+                nn_d_w1 += nn_reg_lambda * self.nn_w1
+
                 d_global_bias = rating_error
                 d_item_bias = rating_error - reg_lambda * self.item_bias[i]
-                d_user_factors = rating_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :] - nn_d_user_f.flatten()
-                d_item_factors = rating_error * self.user_factors[u, :] - reg_lambda * self.item_factors[i, :] - nn_d_item_f.flatten()
+                d_user_factors = rating_error * self.item_factors[i, :] - reg_lambda * self.user_factors[u, :] - nn_d_user_f
+                d_item_factors = rating_error * self.user_factors[u, :] - reg_lambda * self.item_factors[i, :] - nn_d_item_f
+                d_nn_w1 = -1 * nn_d_w1
+                d_nn_w2 = -1 * nn_d_w2
 
                 # update AdaGrad caches and parameters
                 if 'adagrad' in config and config['adagrad']:
@@ -177,17 +208,23 @@ class MFNNModel(BaseRecommender):
                     adac_item_bias[i] += d_item_bias ** 2
                     adac_user_factors[u, :] += d_user_factors ** 2
                     adac_item_factors[i, :] += d_item_factors ** 2
+                    adac_nn_w1 += d_nn_w1 ** 2
+                    adac_nn_w2 += d_nn_w2 ** 2
 
                     # update parameters
                     self.global_bias += lr * d_global_bias / (np.sqrt(adac_global_bias) + ada_eps)
                     self.item_bias[i] += lr * d_item_bias / (np.sqrt(adac_item_bias[i]) + ada_eps)
                     self.user_factors[u, :] += lr * d_user_factors / (np.sqrt(adac_user_factors[u, :]) + ada_eps)
                     self.item_factors[i, :] += lr * d_item_factors / (np.sqrt(adac_item_factors[i, :]) + ada_eps)
+                    self.nn_w1 += lr * d_nn_w1 / np.sqrt(adac_nn_w1 + ada_eps)
+                    self.nn_w2 += lr * d_nn_w2 / np.sqrt(adac_nn_w2 + ada_eps)
                 else:
                     self.global_bias += lr * d_global_bias
                     self.item_bias[i] += lr * d_item_bias
                     self.user_factors[u, :] += lr * d_user_factors
                     self.item_factors[i, :] += lr * d_item_factors
+                    self.nn_w1 += lr * d_nn_w1
+                    self.nn_w2 += lr * d_nn_w2
 
                 # update progess bar
                 if verbose:
@@ -203,20 +240,11 @@ class MFNNModel(BaseRecommender):
             elif 'lr_power_t' in config:
                 lr = config['lr'] / pow(epoch+1, config['lr_power_t'])
 
-            if 'user_pref_lr_decay' in config:
-                user_pref_lr *= (1.0 - config['user_pref_lr_decay'])
-
             # report error
             current_rmse = np.sqrt(np.mean(np.square(rating_errors)))
             train_rmse.append(current_rmse)
             if verbose:
                 print "Train RMSE:", current_rmse
-
-            if self.user_pref_model is not None:
-                current_avg_feature_loss = np.mean(current_feature_losses)
-                feature_loss.append(current_avg_feature_loss)
-                if verbose:
-                    print "Avg Feature Loss:", current_avg_feature_loss
 
             # validation
             if val is not None and 'val' in config and config['val']:

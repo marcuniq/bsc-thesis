@@ -46,6 +46,8 @@ class NNSideInfoModel(BaseSideInfoModel):
             params = lasagne.layers.get_all_params(network, trainable=True)
             updates = lasagne.updates.adagrad(loss, params, lr)
 
+            self._get_loss = theano.function([input_vec, label_vec], loss, allow_input_downcast=True)
+
             self._gradient_step = theano.function([input_vec, label_vec, lr], outputs=[loss, d_input_vec], updates=updates, allow_input_downcast=True)
 
     def step(self, input_vec, user_or_item_id, lr):
@@ -69,6 +71,10 @@ class NNSideInfoModel(BaseSideInfoModel):
     def set_params(self, param_values):
         params_float32 = map(lambda arr: arr.astype(np.float32), param_values)
         lasagne.layers.set_all_param_values(self.network, params_float32)
+
+    def get_loss(self, input_vec, user_or_item_id):
+        label_vec = self.vector_dict[user_or_item_id]
+        return self._get_loss(input_vec, label_vec)
 
 
 class ATSideInfoModel(BaseSideInfoModel):

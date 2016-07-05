@@ -27,21 +27,28 @@ if __name__ == '__main__':
     grid_search = False
     nb_random_samples = 1
 
+    theano = True
+
     params = {
-        'lr': [0.003, 0.01, 0.03],
-        'lr_decay': [5e-4, 2e-2],
-        'reg_lambda': [0.001, 0.003, 0.01],
-        'nb_latent_f': [64, 96, 128],
+        'lr': [0.01, 0.03],
+        'lr_decay': [2e-2],
+        'reg_lambda': [0.01],
+        'nb_latent_f': [96, 128],
         'binarize': [True],
         'use_avg_rating': [False],
-        'zero_sample_factor': [3, 5],
-        'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
-                      ],
-        'user_pref_lr': [0.003, 0.01, 0.03],
-        'user_pref_lr_decay': [5e-4, 2e-2],
-        'user_pref_reg_lambda': [0.0003, 0.001, 0.003],
-        'user_pref_hidden_dim': [[4, 1], [10, 1], [100, 1]]
+        'zero_sample_factor': [5],
+        'd2v_model': ['doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5']
     }
+
+    if theano:
+        params['user_pref_lr'] = [0.003, 0.01, 0.03]
+        params['user_pref_lr_decay'] = [2e-2]
+        params['user_pref_reg_lambda'] = [0.003, 0.01]
+        params['user_pref_hidden_dim'] = [[4], [10], [100]]
+
+    else:
+        params['nn_reg_lambda'] = [0.003, 0.01]
+        params['nb_hidden_neurons'] = [4, 10, 100]
 
     param_comb = list(ParameterGrid(params))
 

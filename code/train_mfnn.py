@@ -4,6 +4,7 @@ import pandas as pd
 from gensim.models import Doc2Vec
 
 from rec_si.recommender.mfnn import MFNNModel
+from rec_si.recommender.mfnn_numpy import MFNNModelNumpy
 from rec_si.recommender.user_pref_model import UserPrefModel
 from rec_si.sampler.zero_sampler import ZeroSampler
 from rec_si.train_eval_save import train_eval_save
@@ -38,7 +39,6 @@ def train_mfnn(config):
 
     d2v_model = Doc2Vec.load(config['d2v_model'])
     config['nb_d2v_features'] = int(d2v_model.docvecs['107290.txt'].shape[0])
-    user_pref_model = UserPrefModel(config)
 
     if config['verbose'] > 0:
         print "experiment: ", config['experiment_name']
@@ -47,8 +47,12 @@ def train_mfnn(config):
     users, items = create_lookup_tables(ratings)
     movie_to_imdb_dict = movie_to_imdb(ratings)
 
-    model = MFNNModel(users, items, config, movie_to_imdb_dict)
-    model.user_pref_model = user_pref_model
+    if 'theano' in config and config['theano']:
+        model = MFNNModel(users, items, config, movie_to_imdb_dict)
+        model.user_pref_model = UserPrefModel(config)
+    else:
+        model = MFNNModelNumpy(users, items, config, movie_to_imdb_dict)
+
     model.d2v_model = d2v_model
     loss_history = model.fit(train, val=val, test=test, zero_sampler=zero_sampler)
 
@@ -101,17 +105,23 @@ if __name__ == "__main__":
         config['binarize_pos'] = 1
         config['binarize_neg'] = 0
 
-    config['experiment_name'] = 'mfnn_ml-100k_e5_tt-0.7_test'
+    config['experiment_name'] = 'mfnn_ml-100k_e5_tt-0.7_nn-theano'
 
     config['use_avg_rating'] = False
 
     config['d2v_model'] = 'doc2vec-models/2016-04-14_17.36.08_20e_pv-dbow_size50_lr0.025_window8_neg5'
-    config['user_pref_lr'] = 0.1
-    config['user_pref_lr_decay'] = 0.02
-    config['user_pref_reg_lambda'] = 0.01
-    config['user_pref_hidden_dim'] = [4, 1]
 
-    config['user_pref_input_movie_d2v'] = True
+    config['theano'] = True
+    if config['theano']:
+        config['user_pref_lr'] = 0.03
+        config['user_pref_lr_decay'] = 0.02
+        config['user_pref_reg_lambda'] = 0.01
+        config['user_pref_hidden_dim'] = [4]
+        config['user_pref_input_movie_d2v'] = True
+
+    else: # pure numpy
+        config['nb_hidden_neurons'] = 4
+        config['nn_reg_lambda'] = 0.01
 
     config['run_eval'] = True
     if config['run_eval']:
