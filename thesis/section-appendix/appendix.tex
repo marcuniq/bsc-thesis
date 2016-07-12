@@ -1,52 +1,59 @@
 \chapter{Appendix}
 \label{a:appendix}
 
-\section{Best Parameters}
+\section{Parameters}
+\label{a:best-params}
+
+\subsection{Doc2Vec}
+\label{a:doc2vec}
+distributed memory: 0 (= distributed bag-of-words: 1), size: 50, hierarchical sampling: 0, negative sampling factor: 5, window: 8, minimum word count: 2, number of epochs: 20, alpha: 0.025, minimum alpha: 0.025, alpha decay: 0.0005
+
 \subsection{MPCFs-SI}
-\subsubsection{MovieLens 100k}
+\subsubsection{ML-100k-sub}
 Matrix factorization model:\\
 learning rate: 0.01, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 128, number of user local preferences $T$: 4, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5\\
-Feature prediction model:\\
+Doc2Vec prediction model:\\
 learning rate: 0.03, learning rate decay: 0.02, regularization parameter $\lambda_{reg}$: 0.01, balancing parameter $\lambda_{ed}$: 0.001, balancing parameter $\lambda_{cos}$: 0.7
 
-\subsubsection{MovieLens 1M}
+\subsubsection{ML-1M-sub}
 Matrix factorization model:\\
 learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 96, number of user local preferences $T$: 2, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5\\
-Feature prediction model:\\
+Doc2Vec prediction model:\\
 learning rate: 0.03, learning rate decay: 0.02, regularization parameter $\lambda_{reg}$: 0.01, balancing parameter $\lambda_{ed}$: 0.0003, balancing parameter $\lambda_{cos}$: 2
 
 \subsection{MFNN}
-\subsubsection{MovieLens 100k}
+\subsubsection{ML-100k-sub}
 Matrix factorization model:\\
-learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 128, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5
+learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 96, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5 \\
 Neural network model:\\
-layer dimensions: [306, 4, 1], learning rate: 0.01, regularization parameter $\lambda_{reg}$: 0.01, balancing parameter $\lambda_{nn}$: 0.1
+layer dimensions: [242, 16, 8, 1], learning rate: 0.03, learning rate decay: 0.02, regularization parameter $\lambda_{nnreg}$: 0.003
 
 
-\subsubsection{MovieLens 1M}
+\subsubsection{ML-1M-sub}
 Matrix factorization model:\\
-learning rate: 0.06, learning rate decay: 0.02, number of epochs: 10, number of latent factors $k$: 128, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 4
+learning rate: 0.06, learning rate decay: 0.02, number of epochs: 10, number of latent factors $k$: 96, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5 \\
 Neural network model:\\
-layer dimensions: [306, 4, 1], learning rate: 0.003, regularization parameter $\lambda_{reg}$: 0.003, balancing parameter $\lambda_{nn}$: 0.3
+layer dimensions: [242, 4, 1], learning rate: 0.06, learning rate decay: 0.02, regularization parameter $\lambda_{nnreg}$: 0.01
+
 
 \subsection{MPCFs}
-\subsubsection{MovieLens 100k}
+\subsubsection{ML-100k-sub}
 learning rate: 0.01, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 128, number of user local preferences $T$: 4, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5
 
-\subsubsection{MovieLens 1M}
+\subsubsection{ML-1M-sub}
 learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors $k$: 128, number of user local preferences $T$: 2, regularization parameter $\lambda_{reg}$: 0.01, zero sample factor: 5
 
 
 \subsection{BPRMF}
-\subsubsection{MovieLens 100k}
+\subsubsection{ML-100k-sub}
 learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors: 128, regularization parameter: 0.01, triplet sample factor: 5
 
-\subsubsection{MovieLens 1M}
+\subsubsection{ML-1M-sub}
 learning rate: 0.03, learning rate decay: 0.02, number of epochs: 20, number of latent factors: 128, regularization parameter: 0.001, triplet sample factor: 5
 
 \subsection{SLIM}
-\subsubsection{MovieLens 100k}
+\subsubsection{ML-100k-sub}
 number of epochs: 5, fit intercept: false, ignore negative weights: true, $l_1$ regularization: 0.003, $l_2$ regularization: 0.00003
 
-\subsubsection{MovieLens 1M}
+\subsubsection{ML-1M-sub}
 number of epochs: 5, fit intercept: true, ignore negative weights: true, $l_1$ regularization: 0.001, $l_2$ regularization: 0.003
