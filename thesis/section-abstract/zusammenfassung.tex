@@ -1,11 +1,8 @@
 \begin{zusammenfassung}
-Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Nullam a tellus.
-Aliquam commodo dui non ipsum. Duis mollis nisi id turpis. Donec quis ipsum.
-Curabitur sed nibh. Morbi suscipit justo quis orci. Ut massa tortor, ultricies
-vitae, lacinia eu, facilisis eu, nisl. Nulla mattis urna sed metus imperdiet
-ornare. Praesent sodales. Etiam laoreet. Mauris quam magna, sagittis et,
-pharetra eget, congue vitae, arcu. Fusce sollicitudin justo. Suspendisse
-lectus. Sed lobortis dolor quis lectus scelerisque ornare. Integer purus.
-Phasellus vel elit at nibh sagittis lobortis. Aliquam iaculis malesuada eros.
-Mauris metus
+Der meist angewandte Algorithmus für Empfehlungssysteme basiert auf kollaborativem Filtern, welcher dazu nur die Bewertungen von Objekten durch Benutzer verwendet.
+Diese Arbeit präsentiert zwei neue Ansätze wie zusätzliche Daten in Form von Merkmalsvektoren eingesetzt werden können, um bessere Top-N Empfehlungen abzugeben.
+Unser erstes Modell, MPCFs-SI, basiert auf einer nichtlinearen Matrix Faktorisierung (MPCFs) und verwendet die zusätzlichen Daten um das Modell zu regularisieren.
+Das zweite Modell, MFNN, ist eine Kombination aus Matrix Faktorisierung und einem neuralen Netz und spielt die zusätzlichen Daten als Eingabe ins neurale Netz ein.
+Unsere Experimente haben gezeigt, dass MPCFs-SI bessere Leistungen erbringt als das beste Vergleichsmodell MPCFs auf unseren MovieLens 100k und MovieLens 1M Teildatensätzen.
+MFNN ist schlechter als das Vergleichsmodell MPCFs auf dem MovieLens 100k Teildatensatz, jedoch ist es auf einem ähnlichen Performanzlevel wie MPCFs-SI auf dem grösseren MovieLens 1M Teildatensatz.
 \end{zusammenfassung}

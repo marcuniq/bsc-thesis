@@ -1,8 +1,8 @@
 \begin{abstract}
-Recommendation systems have become omni-present: we read online news articles, buy books from e-commerce websites and watch videos from online streaming services, which are all very likely to be suggested to us by a recommendation system.
-The most common applied algorithm utilizes the collaborative filtering technique, which makes only use of the user-item rating matrix. This thesis introduces two approaches, which make use of extra data about the items.
-One of our proposed models, MPCFs-SI, is based on a nonlinear matrix factorization model for collaborative filtering (MPCFs), and uses the extra data to regularize the model.
-The second model we propose, MFNN, is an ensemble of a matrix factorization and a neural network and makes direct use of the extra data.
-We show that MPCFs-SI slightly outperforms baseline recommender on a subset of both MovieLens 100k and 1M datasets.
-Our second model MFNN is always performing worse that the MPCFs model.
+The most popular algorithm for recommender systems utilizes the collaborative filtering technique which makes only use of the user-item rating matrix.
+This thesis introduces two approaches which employ extra data encoded as feature vectors.
+One of our proposed models, MPCFs-SI, is based on a nonlinear matrix factorization model for collaborative filtering (MPCFs) and utilizes the extra data to regularize the model.
+The second model called MFNN is an ensemble of a matrix factorization and a neural network and uses the extra data as an input to the neural network.
+Our results show that MPCFs-SI outperforms the baseline recommender MPCFs on a subset of both MovieLens 100k and MovieLens 1M datasets.
+MFNN is inferior to the MPCFs model on our MovieLens 100k subset, however, it is at a similar performance level as MPCFs-SI on the bigger MovieLens 1M subset.
 \end{abstract}

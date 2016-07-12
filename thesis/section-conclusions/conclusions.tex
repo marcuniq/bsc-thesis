@@ -1,9 +1,14 @@
 \chapter{Conclusions}
 \label{c:conclusions}
 
-In this work we have developed two models (MPCFs-SI and MFNN) which incorporate feature vectors of side information in order to improve top-N recommendations.
-While similar approaches like \cite{Bao2014} and \cite{Almahairi2015} have shown improvement in rating prediction on almost all of their datasets, we were able to outperform the baseline recommender MPCFs on top-N recommendations only slightly on our two MovieLens datasets.
-Our second model MFNN always performed worse than the baseline recommender.
+In this work, two models, MPCFs-SI and MFNN, were developed which incorporate side information encoded as feature vectors into recommender systems in order to improve top-N recommendations.
+MPCFs-SI utilizes the side information to regularize its underlying base recommender, a nonlinear matrix factorization model (MPCFs) developed by \cite{Kabbur2015}.
+MFNN is a combination of a matrix factorization and a neural network.
+That model uses the additional extra data as an input to the neural network, together with the user and item latent vectors.
 
-The learning scheme we employed consisted of two steps: first extract feature vectors from movie subtitles via the well established algorithm of Paragraph Vectors\\ \cite{Le2014a}, then using those feature vectors in our models.
-Future research efforts should attempt to fully joint learn a matrix factorization model and a movie subtitle model.
+Our results have shown that MPCFs-SI is able to outperform the baseline recommender MPCFs on the two MovieLens subsets, ML-100k-sub and ML-1M-sub, for the top-N recommendation task.
+MFNN is inferior to MPCFs on the ML-100k-sub dataset, however, it was at a similar level of performance as MPCFs-SI on the ML-1M-sub dataset.
+In particular, MPCFs-SI has an advantage for users with less than 10 training ratings on ML-1M-sub, while MFNN is superior to other recommender for users with less than 200 training ratings also on ML-1M-sub.
+
+Future research efforts should focus on improving the Doc2Vec prediction of the MPCFs-SI model by using a separate weight matrix $\mathbf{G}$ per item.
+For the MFNN model a similar strategy of having separate weights $\mathbf{w}, \mathbf{W^\prime}$ per user or item could be applied and might lead to further improvements.
